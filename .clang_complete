@@ -1,0 +1,3 @@
+-std=c++14
+-I/home/okeri/proj/secure_vision/common
+-I/home/okeri/proj/secure_vision/vision
