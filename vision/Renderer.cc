@@ -6,7 +6,7 @@
 
 #define GLSL(_X_) "#version 300 es\nprecision mediump float;\n" #_X_
 
-const char* s_vert = GLSL(
+const char* vertexSource = GLSL(
 in vec4 position;
 out vec2 texCoord;
 
@@ -17,7 +17,7 @@ void main()
 }
 );
 
-const char* s_frag = GLSL(
+const char* fragmentSource = GLSL(
 in vec2 texCoord;
 out vec4 outColor;
 
@@ -32,8 +32,8 @@ void main()
 Renderer::Renderer() {
     GLuint texture_id;
     GLuint program = shaders::program({
-            {GL_VERTEX_SHADER, s_vert},
-            {GL_FRAGMENT_SHADER, s_frag}
+            {GL_VERTEX_SHADER, vertexSource},
+            {GL_FRAGMENT_SHADER, fragmentSource}
         });
 
     static float vertices[] = {

@@ -28,4 +28,21 @@ struct FrameInfo {
         height = rhs.height;
         return *this;
     }
+
+    int bpp() {
+        switch (format) {
+            case FrameFormat::Grayscale:
+                return 1;
+
+            case FrameFormat::RGB:
+                return 3;
+
+            default:
+                return 4;
+        }
+    }
+
+    size_t size() {
+        return bpp() * width * height;
+    }
 };

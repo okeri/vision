@@ -7,6 +7,7 @@
 #include <string>
 
 #include "SourceFactory.hh"
+#include "FrameCounter.hh"
 #include "EGLWindow.hh"
 #include "Renderer.hh"
 
@@ -39,7 +40,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    FrameInfo captureFormat{FrameFormat::RGB, 1280, 720};
+    FrameInfo captureFormat{FrameFormat::RGB, 640, 480};
     SourceFactory factory(captureFormat);
     auto sources = factory.availableSources();
     if (sources.empty()) {
@@ -73,8 +74,10 @@ int main(int argc, char *argv[]) {
 
     if (record != nullptr && !synthetic) {
         int file = open(record, O_CREAT | O_WRONLY | 0440);
+        write(file, &info, sizeof(info));
         for (int i = 0; i < frames; ++i) {
-            source->dumpFrame(file);
+            Frame frame = source->nextFrame();
+            write(file, frame.data(), frame.size());
             std::cout << "." << std::flush;
         }
         fchmod(file, 0440);
@@ -86,7 +89,9 @@ int main(int argc, char *argv[]) {
     EGLWindow window(captureFormat.width, captureFormat.height,
                      [&source, &info] () {
                          static Renderer render;
+                         static FrameCounter counter;
                          render.render(source->nextFrame(), info);
+                         counter++;
                      });
 
     window.loop();

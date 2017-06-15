@@ -21,6 +21,5 @@ class ISourceProvider {
   public:
     virtual FrameInfo info() = 0;
     virtual Frame nextFrame() = 0;
-    virtual void dumpFrame(int) = 0;
     virtual ~ISourceProvider() {}
 };
