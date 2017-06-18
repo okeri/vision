@@ -28,7 +28,7 @@ SourceProvider::SourceProvider(const std::string &id,
 
     struct v4l2_format format;
     format.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    format.fmt.pix.pixelformat = V4L2_PIX_FMT_YUYV; //YUYV;
+    format.fmt.pix.pixelformat = V4L2_PIX_FMT_YUYV;
     format.fmt.pix.width = info.width;
     format.fmt.pix.height = info.height;
     if (ioctl(fd_, VIDIOC_S_FMT, &format) == -1) {

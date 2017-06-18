@@ -1,9 +1,8 @@
-#include <unistd.h>
 #include <getopt.h>
-#include <sys/stat.h>
 #include <fcntl.h>
 
 #include <iostream>
+#include <fstream>
 #include <string>
 
 #include "SourceFactory.hh"
@@ -72,25 +71,22 @@ int main(int argc, char *argv[]) {
               << info.width << "x" << info.height
               << std::endl;
 
+    std::ofstream os;
     if (record != nullptr && !synthetic) {
-        int file = open(record, O_CREAT | O_WRONLY | 0440);
-        write(file, &info, sizeof(info));
-        for (int i = 0; i < frames; ++i) {
-            Frame frame = source->nextFrame();
-            write(file, frame.data(), frame.size());
-            std::cout << "." << std::flush;
-        }
-        fchmod(file, 0440);
-        close(file);
-        std::cout << std::endl << frames << " frames written" << std::endl;
-        return 0;
+        os.open(record);
+        os.write(reinterpret_cast<char *>(&info), sizeof(info));
     }
 
     EGLWindow window(captureFormat.width, captureFormat.height,
-                     [&source, &info] () {
+                     [&source, &info, &os] () {
                          static Renderer render;
                          static FrameCounter counter;
-                         render.render(source->nextFrame(), info);
+                         Frame frame = source->nextFrame();
+                         render.render(frame, info);
+                         if (os) {
+                             os.write(reinterpret_cast<char *>(frame.data()), frame.size());
+                             std::cout << "." << std::flush;
+                         }
                          counter++;
                      });
 
