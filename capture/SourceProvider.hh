@@ -11,6 +11,7 @@ class SourceProvider : public ISourceProvider {
     void *buffer_;
     struct v4l2_buffer bufInfo_;
 
+    Frame frameFromYUYV(const unsigned char *buffer, size_t size);
   public:
     SourceProvider(const std::string &id, const FrameInfo& info);
     virtual FrameInfo info() override;

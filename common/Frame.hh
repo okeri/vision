@@ -9,7 +9,8 @@ enum class FrameFormat {
     Grayscale,
     RGB,
     RGBX,
-    RGBA
+    RGBA,
+    YUYV
 };
 
 struct FrameInfo {
@@ -29,10 +30,13 @@ struct FrameInfo {
         return *this;
     }
 
-    int bpp() {
+    int bpp() const {
         switch (format) {
             case FrameFormat::Grayscale:
                 return 1;
+
+            case FrameFormat::YUYV:
+                return 2;
 
             case FrameFormat::RGB:
                 return 3;
@@ -42,7 +46,11 @@ struct FrameInfo {
         }
     }
 
-    size_t size() {
-        return bpp() * width * height;
+    size_t rowSize() const {
+        return bpp() * width;
+    }
+
+    size_t size() const {
+        return rowSize() * height;
     }
 };

@@ -12,8 +12,8 @@ out vec2 texCoord;
 
 void main()
 {
-    texCoord = vec2(position[2],position[3]);
-    gl_Position = vec4(position[0],position[1], 0, 1);
+    texCoord = vec2(position[2], position[3]);
+    gl_Position = vec4(position[0], position[1], 0, 1);
 }
 );
 
@@ -37,13 +37,12 @@ Renderer::Renderer() {
         });
 
     static float vertices[] = {
-        -1.f, 1.f, 1., 0.,
-        -1.f, -1.f, 1., 1.,
-        1.f,  -1.f, 0., 1.,
-
-        1.f,  -1.f, 0., 1.,
-        1.f,  1.f, 0., 0.,
-        -1.f, 1.f, 1., 0.
+        1.f, 1.f, 1., 0.,
+        1.f, -1.f, 1., 1.,
+        -1.f,  -1.f, 0., 1.,
+        -1.f,  -1.f, 0., 1.,
+        -1.f,  1.f, 0., 0.,
+        1.f, 1.f, 1., 0.
     };
 
 

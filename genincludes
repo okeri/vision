@@ -1,0 +1,11 @@
+#!/bin/bash
+
+mkdir -p $2
+for f in $1/*; do
+    name=`echo $(basename $f) | cut -d'.' -f1`
+    result=$2/kernel_$name.hh
+    echo -e "#pragma once\n\nconst char* kernel_"$name"_src = \"\ " > $result
+    head -c -1 $f |  sed ':a;N;$!ba;s/\n/\\ \n/g;'  >> $result
+    echo "\";" >> $result
+done
+exit 0

@@ -196,6 +196,7 @@ EGLWindow::~EGLWindow() {
 int EGLWindow::loop() {
     return pImpl_->loop();
 }
+
 void EGLWindow::stop() {
     pImpl_->stop();
 }

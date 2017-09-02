@@ -4,11 +4,13 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <cstring>
 
 #include "SourceFactory.hh"
 #include "FrameCounter.hh"
-#include "EGLWindow.hh"
+#include "Computer.hh"
 #include "Renderer.hh"
+#include "EGLWindow.hh"
 
 int main(int argc, char *argv[]) {
     int c;
@@ -39,7 +41,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    FrameInfo captureFormat{FrameFormat::RGB, 640, 480};
+    FrameInfo captureFormat{FrameFormat::YUYV, 640, 480};
     SourceFactory factory(captureFormat);
     auto sources = factory.availableSources();
     if (sources.empty()) {
@@ -77,19 +79,22 @@ int main(int argc, char *argv[]) {
         os.write(reinterpret_cast<char *>(&info), sizeof(info));
     }
 
+    Computer computer(0, info);
+
     EGLWindow window(captureFormat.width, captureFormat.height,
-                     [&source, &info, &os] () {
+                     [&source, &info, &os, &computer] () {
                          static Renderer render;
                          static FrameCounter counter;
                          Frame frame = source->nextFrame();
-                         render.render(frame, info);
-                         if (os) {
+
+                         render.render(computer.compute(frame), info);
+
+                         if (os.is_open()) {
                              os.write(reinterpret_cast<char *>(frame.data()), frame.size());
                              std::cout << "." << std::flush;
                          }
                          counter++;
                      });
 
-    window.loop();
-    return 0;
+    return window.loop();
 }
