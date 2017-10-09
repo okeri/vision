@@ -1,9 +1,11 @@
 // Copyright 2017 Keri Oleg
 
 #include <EGL/egl.h>
+#include <linux/input.h>
 #include <wayland-client.h>
 #include <wayland-egl.h>
 #include <wayland-cursor.h>
+
 #include <cstring>
 #include <stdexcept>
 #include "EGLWindow.hh"
@@ -20,8 +22,8 @@ class EGLWindow::Impl {
     wl_cursor_theme *cursor_theme_;
     wl_cursor *default_cursor_;
     wl_surface *cursor_surface_;
-
-
+    wl_seat *seat_;
+    wl_keyboard *keyboard_;
     EGLSurface egl_surface_;
     EGLDisplay dpy_;
     EGLContext ctx_;
@@ -37,7 +39,7 @@ class EGLWindow::Impl {
   public:
 
     Impl(int width, int height, RenderFn render) :
-            render_(render), stop_(false) {
+            render_(render), stop_(false), keyboard_(NULL) {
         static const wl_registry_listener registry_listener = {
             global_registry_handler
         };
@@ -153,6 +155,15 @@ class EGLWindow::Impl {
         } else if (strcmp(interface, "wl_shell") == 0) {
             window->shell_ = reinterpret_cast<wl_shell *>(
                 wl_registry_bind(registry, id, &wl_shell_interface, 1));
+        } else if (strcmp(interface, "wl_seat") == 0) {
+            static const struct wl_seat_listener seat_listener = {
+                seat_handle_capabilities,
+            };
+
+            window->seat_ = reinterpret_cast<wl_seat *>(
+                wl_registry_bind(registry, id, &wl_seat_interface, 1));
+            wl_seat_add_listener(window->seat_, &seat_listener, window);
+
         } else if (strcmp(interface, "wl_shm") == 0) {
             wl_shm *shm = reinterpret_cast<wl_shm *>(
                 wl_registry_bind(registry, id, &wl_shm_interface, 1));
@@ -161,6 +172,53 @@ class EGLWindow::Impl {
                     wl_cursor_theme_get_cursor(window->cursor_theme_, "left_ptr");
         }
 
+    }
+    static void seat_handle_capabilities(void *data, struct wl_seat *seat,
+                                         unsigned int caps) {
+        Impl *window = reinterpret_cast<Impl *>(data);
+
+	if ((caps & WL_SEAT_CAPABILITY_KEYBOARD) && !window->keyboard_) {
+            static const struct wl_keyboard_listener keyboard_listener = {
+                keyboard_handle_keymap,
+                keyboard_handle_enter,
+                keyboard_handle_leave,
+                keyboard_handle_key,
+                keyboard_handle_modifiers
+            };
+
+            window->keyboard_ = wl_seat_get_keyboard(seat);
+            wl_keyboard_add_listener(window->keyboard_, &keyboard_listener, window);
+        } else if (!(caps & WL_SEAT_CAPABILITY_KEYBOARD) && window->keyboard_) {
+            wl_keyboard_destroy(window->keyboard_);
+            window->keyboard_ = NULL;
+        }
+    }
+
+    static void keyboard_handle_keymap(void *data, struct wl_keyboard *keyboard,
+                                       uint32_t format, int fd, uint32_t size) {
+    }
+
+    static void  keyboard_handle_enter(void *data, struct wl_keyboard *keyboard,
+                          uint32_t serial, struct wl_surface *surface,
+                          struct wl_array *keys)  {
+    }
+
+    static void keyboard_handle_leave(void *data, struct wl_keyboard *keyboard,
+                                      uint32_t serial, struct wl_surface *surface) {
+    }
+
+    static void keyboard_handle_key(void *data, struct wl_keyboard *keyboard,
+                                    uint32_t serial, uint32_t time, uint32_t key,
+                                    uint32_t state) {
+        if (key == KEY_ESC || key == KEY_Q) {
+            reinterpret_cast<Impl *>(data)->stop();
+        }
+    }
+
+    static void keyboard_handle_modifiers(void *data, struct wl_keyboard *keyboard,
+                                          uint32_t serial, uint32_t mods_depressed,
+                                          uint32_t mods_latched, uint32_t mods_locked,
+                                          uint32_t group) {
     }
 
     static void redraw(void *data, wl_callback *callback, uint32_t time) {

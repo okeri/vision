@@ -37,7 +37,7 @@ SourceProvider::SourceProvider(const std::string &id,
         throw std::runtime_error("Error: cannot set format" + id);
     }
 
-#ifdef FORCE_FRAMERATE
+#ifndef FORCE_FRAMERATE
     struct v4l2_streamparm streamparm;
     memset(&streamparm, 0, sizeof(streamparm));
     streamparm.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -130,9 +130,6 @@ Frame SourceProvider::nextFrame() {
     bufInfo_.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     bufInfo_.memory = V4L2_MEMORY_MMAP;
     ioctl(fd_, VIDIOC_QBUF, &bufInfo_);
-    // Frame frame = {1,2,3,4,101,102,103,104,201,5,202,6,7,203,8,204,1,1,200,200,200,200,1,1};
-    // bufInfo_.length = frame.size();
-    // buffer_ = frame.data();
 
     switch (info_.format) {
         case FrameFormat::YUYV:

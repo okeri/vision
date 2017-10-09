@@ -1,3 +1,4 @@
+#include <stdexcept>
 #include <GLES3/gl3.h>
 #include <GLES3/gl3ext.h>
 
@@ -29,6 +30,23 @@ void main()
 }
 );
 
+namespace {
+
+GLenum frameFormat2openglFormat(FrameFormat fmt) {
+    switch (fmt) {
+        case FrameFormat::RGB:
+            return GL_RGB;
+
+        case FrameFormat::RGBA:
+            return GL_RGBA;
+
+        default:
+            throw std::logic_error("Unsupported display format");
+    }
+    return 0;
+}
+
+}  // namespace
 Renderer::Renderer() {
     GLuint texture_id;
     GLuint program = shaders::program({
@@ -60,9 +78,10 @@ Renderer::Renderer() {
 }
 
 void Renderer::render(const Frame &frame, const FrameInfo &info) {
+
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8,
                  info.width, info.height, 0,
-                 GL_RGB,
+                 frameFormat2openglFormat(info.format),
                  GL_UNSIGNED_BYTE,
                  frame.data());
     glClear(GL_COLOR_BUFFER_BIT);

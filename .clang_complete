@@ -1,4 +1,4 @@
--std=c++1z
+-std=c++17
 -I/home/okeri/proj/secure_vision/common
 -I/home/okeri/proj/secure_vision/vision
 -I/tmp/secure_vision/opencl

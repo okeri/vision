@@ -8,7 +8,7 @@
 
 #include "SourceFactory.hh"
 #include "FrameCounter.hh"
-#include "Computer.hh"
+#include "GPU.hh"
 #include "Renderer.hh"
 #include "EGLWindow.hh"
 
@@ -17,7 +17,7 @@ int main(int argc, char *argv[]) {
     int frames = 128;
     bool showSources = false;
     const char *data = nullptr, *record = nullptr;
-    while ((c = getopt(argc, argv, "d:f:lr:")) != -1) {
+    while ((c = getopt(argc, argv, "d:f:lnr:")) != -1) {
         switch (c) {
             case 'l':
                 showSources = true;
@@ -36,7 +36,7 @@ int main(int argc, char *argv[]) {
                 break;
 
             default:
-                std::cout << "usage:" << argv[0] << "[-l] [-d data] [-r data]" << std::endl;
+                std::cout << "usage:" << argv[0] << " [-ln] [-d data] [-r data]" << std::endl;
                 return 1;
         }
     }
@@ -79,15 +79,17 @@ int main(int argc, char *argv[]) {
         os.write(reinterpret_cast<char *>(&info), sizeof(info));
     }
 
-    Computer computer(0, info);
+    GPU gpu(0, info);
 
     EGLWindow window(captureFormat.width, captureFormat.height,
-                     [&source, &info, &os, &computer] () {
+                     [&source, &info, &os, &gpu] () {
                          static Renderer render;
                          static FrameCounter counter;
+                         static FrameInfo renderInfo =
+                                 {FrameFormat::RGB, info.width, info.height};
                          Frame frame = source->nextFrame();
+                         render.render(gpu.compute(frame), renderInfo);
 
-                         render.render(computer.compute(frame), info);
 
                          if (os.is_open()) {
                              os.write(reinterpret_cast<char *>(frame.data()), frame.size());

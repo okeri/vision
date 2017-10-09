@@ -19,16 +19,16 @@ if not cap.isOpened():
     exit(1)
 
 
-while True:
-    ret, frame = cap.read()
+#while True:
+ret, frame = cap.read()
 
     # Display the resulting frame
-    frame = cv.flip(frame, 1)
-    out.write(frame.tobytes())
-    cv.imshow('frame', frame)
+frame = cv.flip(frame, 1)
+out.write(frame.tobytes())
+cv.imshow('frame', frame)
 
-    if cv.waitKey(1) & 0xFF == ord('q'):
-        break
+#    if cv.waitKey(1) & 0xFF == ord('q'):
+#   break
 
 # When everything done, release the capture
 cap.release()

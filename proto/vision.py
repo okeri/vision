@@ -2,7 +2,7 @@
 import cv2 as cv
 import numpy as np
 import sys
-
+import time
 if len(sys.argv) < 2:
     print("filename is required")
     exit(2)
@@ -14,10 +14,13 @@ width=int.from_bytes(cap.read(4), 'little')
 height=int.from_bytes(cap.read(4), 'little')
 size = width * height * 3
 
-if fmt != 1:
+if fmt != 6:
     print("error: unsupported format")
     exit(1)
 
+
+fast = cv.FastFeatureDetector_create(nonmaxSuppression=False, threshold=30)
+#fast = cv.FastFeatureDetector_create(nonmaxSuppression=True)
 
 orb = cv.ORB_create()
 bf = cv.BFMatcher(cv.NORM_HAMMING, crossCheck=True)
@@ -31,29 +34,32 @@ m = False
 
 
 
-while(True):
+while True:
     buf=cap.read(size)
     if (len(buf) == 0):
         break
     frames[frameToggler]["data"] = np.frombuffer(buffer=buf, dtype=np.uint8).reshape((height, width, 3))
 
-    cv.flip(frames[frameToggler]["data"], 1, frames[frameToggler]["data"])
+#    cv.flip(frames[frameToggler]["data"], 1, frames[frameToggler]["data"])
+    gray  = cv.cvtColor(frames[frameToggler]["data"], cv.COLOR_BGR2GRAY)
 #    cv.medianBlur(frames[frameToggler]["data"], 5, frames[frameToggler]["data"])
-    frames[frameToggler]["data"] = cv.GaussianBlur(frames[frameToggler]["data"], (7,7), 0)
-    if m == True:
-        frames[frameToggler]["feature"], frames[frameToggler]["handle"] = orb.detectAndCompute(frames[frameToggler]["data"], None)
-        frames[not frameToggler]["feature"], frames[not frameToggler]["handle"] = orb.detectAndCompute(frames[not frameToggler]["data"], None)
+    #frames[frameToggler]["data"] = cv.GaussianBlur(frames[frameToggler]["data"], (7,7), 0)
+#    gray = cv.GaussianBlur(gray, (5,5), 0)
+    # if m == True:
+    #     frames[frameToggler]["feature"], frames[frameToggler]["handle"] = orb.detectAndCompute(frames[frameToggler]["data"], None)
+    # frames[not frameToggler]["feature"], frames[not frameToggler]["handle"] = orb.detectAndCompute(frames[not frameToggler]["data"], None)
+    frames[frameToggler]["feature"] = fast.detect(gray)
+    result=0
+    result=cv.drawKeypoints(frames[frameToggler]["data"],frames[frameToggler]["feature"],result,color=(255,0,0),flags=0)
+   #     matches = bf.match(frames[frameToggler]["handle"], frames[not frameToggler]["handle"])
+   #     matches = sorted(matches, key = lambda x:x.distance)
+ #       tmatches = [s for s in matches if s.distance < 20]
+  #      stats.append(len(tmatches))
+#        result = cv.drawMatches(frames[frameToggler]["data"],frames[frameToggler]["feature"],frames[not frameToggler]["data"],frames[not frameToggler]["feature"], tmatches, None, flags=2)
 
-        matches = bf.match(frames[frameToggler]["handle"], frames[not frameToggler]["handle"])
-        matches = sorted(matches, key = lambda x:x.distance)
-        tmatches = [s for s in matches if s.distance < 20]
-        stats.append(len(tmatches))
-        result = cv.drawMatches(frames[frameToggler]["data"],frames[frameToggler]["feature"],frames[not frameToggler]["data"],frames[not frameToggler]["feature"], tmatches, None, flags=2)
-
-        # Display the resulting frame
-        cv.imshow('frame', result)
-
-    if cv.waitKey(1) & 0xFF == ord('q'):
+# Display the resulting frame
+    cv.imshow('frame', result)
+    if cv.waitKey(0) & 0xFF == ord('q'):
         break
     m = True
     frameToggler = not frameToggler

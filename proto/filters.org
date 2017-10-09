@@ -1,0 +1,5 @@
+median3 total: 349, min: 262, max: 404, avg: 349.11174785100286
+median5 total: 349, min: 195, max: 388, avg: 302.5587392550143
+gauss3 total: 349, min: 254, max: 404, avg: 333.97134670487105
+gauss5 total: 349, min: 211, max: 373, avg: 295.30372492836676
+none total: 349, min: 317, max: 404, avg: 368.83667621776505

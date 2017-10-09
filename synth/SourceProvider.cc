@@ -22,6 +22,7 @@ SourceProvider::SourceProvider(const std::string &id, FrameFormat format) :
     if (read(fd_, &info_, sizeof(info_)) != sizeof(info_)) {
         throw std::runtime_error("Error: cannot read data header " + id);
     }
+    max_ -= info_.size();
     min_ = lseek(fd_, 0, SEEK_CUR);
 }
 
@@ -30,21 +31,21 @@ SourceProvider::~SourceProvider() {
 }
 
 Frame SourceProvider::nextFrame() {
-    uint64_t pos;
+    int64_t pos;
     if (dir_ == Direction::Forward) {
         pos = lseek(fd_, 0, SEEK_CUR);
-        if (pos == max_) {
+        if (pos >= max_) {
             dir_ = Direction::Backward;
         }
     } else {
-        pos = lseek(fd_, -2 * info_.size(), SEEK_CUR);
+        pos = lseek(fd_, (min_ == max_  ? -1 :-2) * info_.size(), SEEK_CUR);
         if (pos <= min_) {
             dir_ = Direction::Forward;
             lseek(fd_, min_, SEEK_SET);
         }
-    }
 
-    Frame frame(info_.size());
+    }
+    static Frame frame(info_.size());
     read(fd_, frame.data(), frame.size());
     return frame;
 }

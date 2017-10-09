@@ -10,7 +10,9 @@ enum class FrameFormat {
     RGB,
     RGBX,
     RGBA,
-    YUYV
+    YUYV,
+    ARGB,
+    BGR
 };
 
 struct FrameInfo {
