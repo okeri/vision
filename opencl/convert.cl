@@ -6,13 +6,22 @@ inline void yuyv2rgb_local(const int y, const int u, const int v,
     result[2] = clamp((int)(y + (1.772 * (u - 128))), 0, 255);
 }
 
-void kernel yuyv2rgb(global const uchar* yuyv,
+void kernel yuyv2rgb_flip(global const uchar* yuyv,
                      global uchar* rgb) {
-    int start = mul24(get_global_id(0), 4);
+    int start = get_global_id(0) << 2;
     int dst = 6 * mad24(get_group_id(0), get_local_size(0),
                         (int)(get_local_size(0) - get_local_id(0) - 1));
+
     yuyv2rgb_local(yuyv[start], yuyv[start + 1], yuyv[start + 3], &rgb[dst + 3]);
     yuyv2rgb_local(yuyv[start + 2], yuyv[start + 1], yuyv[start + 3], &rgb[dst]);
+}
+
+void kernel yuyv2rgb(global const uchar* yuyv,
+                     global uchar* rgb) {
+    int start = get_global_id(0) << 2;
+    int dst = mul24(get_global_id(0), 3) << 1;
+    yuyv2rgb_local(yuyv[start], yuyv[start + 1], yuyv[start + 3], &rgb[dst]);
+    yuyv2rgb_local(yuyv[start + 2], yuyv[start + 1], yuyv[start + 3], &rgb[dst + 3]);
 }
 
 
@@ -50,13 +59,19 @@ void kernel rgb2gs(global const uchar* rgb,
     grayscale[pixel] = (rgb[src] + rgb[src + 1] * 5 + (rgb[src + 2] << 1)) >> 3;
 }
 
+void kernel yuyv2gs_flip(global const uchar* yuyv,
+                    global uchar* grayscale) {
+    int src = get_global_id(0) << 2;
+    int dst = mad24(get_group_id(0), get_local_size(0),
+                    (int)(get_local_size(0) - get_local_id(0) - 1)) << 1;
+    grayscale[dst] = yuyv[src];
+    grayscale[dst + 1] = yuyv[src + 2];
+}
 
 void kernel yuyv2gs(global const uchar* yuyv,
                     global uchar* grayscale) {
-    int src = mul24(get_global_id(0), 4u);
-    int dst = 2 * mad24(get_group_id(0), get_local_size(0),
-                        (int)(get_local_size(0) - get_local_id(0) - 1));
-
+    int src = get_global_id(0) << 2;
+    int dst = get_global_id(0) << 1;
     grayscale[dst] = yuyv[src];
     grayscale[dst + 1] = yuyv[src + 2];
 }
