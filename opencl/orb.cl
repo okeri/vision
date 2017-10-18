@@ -67,17 +67,17 @@ void kernel fast(global const uchar* grayscale,  global short *features) {
     for (uint i, start = 0; start < 16; ++start) {
         if (itable[start]) {
             bool first_pos = itable[start] > 0;
-            short feature = 0;
+            ushort feature = 0;
             for (i = start + 1; i < start + FAST_POINTS - 1; ++i) {
                 int ri = i > 15 ? i - 16 : i;
                 if (itable[ri] == 0 || (itable[ri] > 0) != first_pos) {
                     break;
                 }
-                feature += itable[ri];
+                feature += abs(itable[ri]);
             }
 
             if (i == start + FAST_POINTS - 1) {
-                features[p] = abs(feature);
+                features[p] = feature;
                 break;
             }
         }

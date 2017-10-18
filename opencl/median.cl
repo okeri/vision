@@ -1,65 +1,22 @@
+const sampler_t sampler = CLK_NORMALIZED_COORDS_FALSE;
+
 /* a little bit optimized*/
-void kernel median_mean(global const uchar *input, global uchar *output,
-                        uint channels, uint kernelSize) {
+void kernel median_mean(read_only image2d_t input, write_only image2d_t output,
+                        uint kernelSize) {
     int kernelOfs = kernelSize  >> 1;
-    uint2 min_pos = (uint2)(max((int)get_global_id(0) - kernelOfs, 0),
-                            max((int)get_global_id(1) - kernelOfs, 0));
-    uint2 max_pos = (uint2)(min(get_global_id(0) + kernelOfs, get_global_size(0)),
-                            min(get_global_id(1) + kernelOfs, get_global_size(1)));
-    size_t stride = get_global_size(0) * channels;
+    int2 pos = (int2)(get_global_id(0), get_global_id(1));
+    int2 min_pos = (int2)(max(pos.x - kernelOfs, 0),
+                          max(pos.y - kernelOfs, 0));
+    int2 max_pos = (int2)(min(pos.x + kernelOfs, (int)get_global_size(0)),
+                          min(pos.y + kernelOfs, (int)get_global_size(1)));
 
-    for (size_t channel = 0; channel < channels; ++channel) {
-        uint average = 0, wi = 0;
+    uint sum = 0, wi = 0;
 
-        for (uint ypos = mad24(min_pos.y, stride, channel);
-             ypos <= mad24(max_pos.y, stride, channel); ypos += stride) {
-
-            for (uint xpos = mad24(min_pos.x, channels, ypos);
-                 xpos <= mad24(max_pos.x, channels, ypos); xpos += channels, ++wi) {
-                average += input[xpos];
-            }
+    for (int ypos = min_pos.y; ypos <= max_pos.y; ++ypos) {
+        for (int xpos = min_pos.x; xpos <= max_pos.x; ++xpos, ++wi) {
+            sum += read_imageui(input, sampler, (int2)(xpos, ypos)).w;
         }
-        output[get_global_id(1) * stride + get_global_id(0) * channels +
-               channel] = average / wi;
     }
-}
-
-/* TODO: replace with nth-element or partial_sort */
-void insertionSort(global uchar *window, int size) {
-    uchar temp;
-    int j;
-    for(int i = 0; i < size; ++i) {
-        temp = window[i];
-        for(j = i - 1; j >= 0 && temp < window[j]; --j) {
-            window[j + 1] = window[j];
-        }
-        window[j + 1] = temp;
-    }
-}
-
-void kernel median(global const uchar *input, global uchar *output,
-                   uint channels, uint kernelSize, global uchar *window) {
-    int kernelOfs = kernelSize  >> 1;
-
-    uint2 min_pos = (uint2)(max((int)get_global_id(0) - kernelOfs, 0),
-                            max((int)get_global_id(1) - kernelOfs, 0));
-    uint2 max_pos = (uint2)(min(get_global_id(0) + kernelOfs, get_global_size(0)),
-                            min(get_global_id(1) + kernelOfs, get_global_size(1)));
-    size_t stride = get_global_size(0) * channels;
-    uint windowSize = kernelSize * kernelSize;
-
-    for (size_t channel = 0; channel < channels; ++channel) {
-        uint wi = 0;
-        for (uint ypos = mad24(min_pos.y, stride, channel);
-             ypos <= mad24(max_pos.y, stride, channel); ypos += stride) {
-
-            for (uint xpos = mad24(min_pos.x, channels, ypos);
-                 xpos <= mad24(max_pos.x, channels, ypos); xpos += channels) {
-                window[wi++] = input[xpos];
-            }
-        }
-        insertionSort(window, windowSize);
-        output[get_global_id(1) * stride + get_global_id(0) * channels +
-               channel] = window[(windowSize >> 1) + 1];
-    }
+    uint v = sum / wi;
+    write_imageui(output, pos, (uint4) (v, v, v, v));
 }

@@ -7,6 +7,8 @@
 #include <TimeCounter.hh>
 #include "GPU.hh"
 
+using Feature = uint16_t;
+
 class GPU::Impl {
     FrameInfo info_;
     cl::CommandQueue queue_;
@@ -24,23 +26,25 @@ class GPU::Impl {
     cl::Buffer input_;
     cl::Buffer rgb_;
     cl::Buffer grayscale_;
-    cl::Buffer allfeatures_;
-    cl::Buffer features_;
+    cl::Image2D gsimage_;
+    cl::Image2D filtered_;
+    cl::Image2D allfeatures_;
+    cl::Image2D features_;
     const int channels_ = 3;
     size_t square_;
     size_t outputSize_;
     TimeCounter counter_;
     std::vector<uint8_t> rgbBuffer_;
-    std::vector<int16_t> featureBuffer_;
+    std::vector<Feature> featureBuffer_;
 
   public:
-    Impl(int device, const FrameInfo &info)
-            : info_(info),
-              square_(info.width * info.height),
-              outputSize_(square_ * channels_),
-              rgbBuffer_(outputSize_),
-              featureBuffer_(square_) {
-
+    Impl(int device, const FrameInfo &info) :
+            info_(info),
+            square_(info.width * info.height),
+            outputSize_(square_ * channels_),
+            rgbBuffer_(outputSize_),
+            featureBuffer_(square_)
+    {
         std::vector<cl::Platform> platforms;
         cl::Platform::get(&platforms);
 
@@ -63,7 +67,7 @@ class GPU::Impl {
         };
 
         cl::Program program(context, sources);
-        if (program.build({default_device}, "-DFAST_POINTS=11 -DFAST_THRESHOLD=10") != CL_SUCCESS) {
+        if (program.build({default_device}, "-DFAST_POINTS=11 -DFAST_THRESHOLD=20") != CL_SUCCESS) {
             throw std::runtime_error(
                 "Error building: " + program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(
                     default_device));
@@ -86,11 +90,23 @@ class GPU::Impl {
                             std::max(outputSize_, info.size()));
         rgb_ = cl::Buffer(context, CL_MEM_USE_HOST_PTR, outputSize_,
                           rgbBuffer_.data());
-        features_ = cl::Buffer(context, CL_MEM_READ_WRITE, featureBuffer_.size() *
-                               sizeof(int16_t));
-        allfeatures_ = cl::Buffer(context, CL_MEM_READ_WRITE, featureBuffer_.size() *
-                                  sizeof(int16_t));
+
         grayscale_ = cl::Buffer(context, CL_MEM_READ_WRITE, square_);
+        gsimage_ = cl::Image2D(context, CL_MEM_READ_ONLY,
+                                 cl::ImageFormat(CL_INTENSITY, CL_UNSIGNED_INT8),
+                                 info_.width, info_.height);
+
+        filtered_ = cl::Image2D(context, CL_MEM_WRITE_ONLY,
+                                 cl::ImageFormat(CL_INTENSITY, CL_UNSIGNED_INT8),
+                                 info_.width, info_.height);
+
+        features_ = cl::Image2D(context, CL_MEM_READ_WRITE,
+                                 cl::ImageFormat(CL_A, CL_UNSIGNED_INT16),
+                                 info_.width, info_.height);
+
+        allfeatures_ = cl::Image2D(context, CL_MEM_READ_WRITE,
+                                 cl::ImageFormat(CL_A, CL_UNSIGNED_INT16),
+                                 info_.width, info_.height);
     }
 
     inline void convertOperation(cl::Kernel &convertKernel,
@@ -116,27 +132,25 @@ class GPU::Impl {
 
             case FrameFormat::YUYV:
                 // 4 yuyv bytes = 2 rgb pixels => iteration count = w * h / 2
-                convertOperation(yuyv2rgb_, square_ >> 1,
-                                 info_.width >> 1, input, rgb_);
+                // convertOperation(yuyv2rgb_, square_ >> 1,
+                //                  info_.width >> 1, input, rgb_);
                 convertOperation(yuyv2gs_, square_ >> 1,
-                                  info_.width >> 1, input, grayscale_);
+                                 info_.width >> 1, input, grayscale_);
+
                 haveGrayscale = true;
                 break;
 
             case FrameFormat::RGBA:
             case FrameFormat::RGBX:
-                convertOperation(rgba2rgb_, square_,
-                                 1, input, rgb_);
+                convertOperation(rgba2rgb_, square_, 1, input, rgb_);
                 break;
 
             case FrameFormat::BGR:
-                convertOperation(bgr2rgb_, square_,
-                                 1, input, rgb_);
+                convertOperation(bgr2rgb_, square_, 1, input, rgb_);
                 break;
 
             case FrameFormat::ARGB:
-                convertOperation(argb2rgb_, square_,
-                                 1, input, rgb_);
+                convertOperation(argb2rgb_, square_, 1, input, rgb_);
                 break;
 
             default:
@@ -152,29 +166,28 @@ class GPU::Impl {
                                         cl::NDRange(square_),
                                         cl::NDRange(1));
         }
+        cl::size_t<3> dimensions;
+        dimensions[0] = info_.width;
+        dimensions[1] = info_.height;
+        dimensions[2] = 1;
+        queue_.enqueueCopyBufferToImage(grayscale_, gsimage_, 0,
+                                        cl::size_t<3>(),
+                                        dimensions);
 
         // make median filtration to reduce noise and feature count
-        median_.setArg(0, grayscale_);
-        median_.setArg(1, input_);
-        median_.setArg(2, 1);
-        median_.setArg(3, 5 /*kernelSize*/);
+        median_.setArg(0, gsimage_);
+        median_.setArg(1, filtered_);
+        median_.setArg(2, 5 /*kernelSize*/);
         queue_.enqueueNDRangeKernel(
             median_, cl::NullRange, cl::NDRange(info_.width, info_.height),
             cl::NDRange(1, 1));
 
         // detect corners
-        fast_.setArg(0, input_);
+        fast_.setArg(0, filtered_);
         fast_.setArg(1, allfeatures_);
         queue_.enqueueNDRangeKernel(
             fast_, cl::NDRange(3, 3), cl::NDRange(info_.width - 6, info_.height - 6),
             cl::NDRange(1, 1));
-
-        // queue_.enqueueReadBuffer(features_, CL_TRUE, 0, rgbBuffer_.size(),
-        //                          rgbBuffer_.data());
-        // uint16_t *f = (uint16_t*)rgbBuffer_.data();
-        queue_.enqueueReadBuffer(allfeatures_, CL_TRUE, 0, featureBuffer_.size() *
-                                 sizeof(uint32_t),
-                                 featureBuffer_.data());
 
         // non-max supression
         fast_nm_.setArg(0, allfeatures_);
@@ -184,23 +197,6 @@ class GPU::Impl {
             cl::NDRange(1, 1));
 
 
-        queue_.enqueueReadBuffer(features_, CL_TRUE, 0, featureBuffer_.size() *
-                                 sizeof(int16_t),
-                                 featureBuffer_.data());
-        int16_t *f = (int16_t*)featureBuffer_.data();
-
-        // count
-        // int cnt = 0;
-        // for (auto x = 0; x < info_.width ; ++x) {
-        //     for (auto y = 0; y < info_.height ; ++y) {
-        //         if (f[y * 640 + x] && (x > 3 && y > 3) && x < info_.width - 3 && y < info_.height < 3) {
-        //             std::cout << x << ":" << y  << " = " << f[y * 640 + x] <<  std::endl;
-        //         }
-        //     }
-        // }
-        //        std::cout << "======" << std::endl;
-
-
         // draw corners
         draw_.setArg(0, features_);
         draw_.setArg(1, rgb_);
@@ -208,15 +204,6 @@ class GPU::Impl {
                                     cl::NDRange(1));
 
 
-        // std::cout << (int)cornerBuffer_[0] << "|"
-        //           << (int)cornerBuffer_[info_.width * 2] << "|"
-        //           << (int)cornerBuffer_[info_.width + 2] << "|"
-        //           << (int)cornerBuffer_[info_.width * 3] << "|"
-        //           << (int)cornerBuffer_[info_.width + 3] << "|"
-        //           << (int)cornerBuffer_[info_.width * 3 + 3] << "|"
-        //           << std::endl;
-        //        std::cout << cnt << std::endl;
-        // read back
         queue_.enqueueReadBuffer(rgb_, CL_TRUE, 0, rgbBuffer_.size(),
                                  rgbBuffer_.data());
 
