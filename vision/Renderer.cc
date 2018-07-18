@@ -34,6 +34,9 @@ namespace {
 
 GLenum frameFormat2openglFormat(FrameFormat fmt) {
     switch (fmt) {
+        case FrameFormat::Grayscale:
+            return GL_RED;
+
         case FrameFormat::RGB:
             return GL_RGB;
 
@@ -47,6 +50,7 @@ GLenum frameFormat2openglFormat(FrameFormat fmt) {
 }
 
 }  // namespace
+
 Renderer::Renderer() {
     GLuint texture_id;
     GLuint program = shaders::program({
@@ -74,7 +78,6 @@ Renderer::Renderer() {
 
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, vertices);
-    glUseProgram(program);
 }
 
 void Renderer::render(const Frame &frame, const FrameInfo &info) {

@@ -15,10 +15,15 @@
 int main(int argc, char *argv[]) {
     int c;
     int frames = 128;
+    int cameraIndex = 0;
     bool showSources = false;
     const char *data = nullptr, *record = nullptr;
-    while ((c = getopt(argc, argv, "d:f:lnr:")) != -1) {
+    while ((c = getopt(argc, argv, "c:d:f:lr:")) != -1) {
         switch (c) {
+            case 'c':
+                cameraIndex = std::stoi(optarg);
+                break;
+
             case 'l':
                 showSources = true;
                 break;
@@ -36,7 +41,7 @@ int main(int argc, char *argv[]) {
                 break;
 
             default:
-                std::cout << "usage:" << argv[0] << " [-ln] [-d data] [-r data]" << std::endl;
+                std::cout << "usage:" << argv[0] << " [-l] [-c index] [-d data] [-r data]" << std::endl;
                 return 1;
         }
     }
@@ -58,9 +63,9 @@ int main(int argc, char *argv[]) {
     const char *id;
     std::unique_ptr<ISourceProvider> source;
     if (data == nullptr) {
-        source = factory.createProvider(sources[0]);
-        id = sources[0].id.c_str();
-        synthetic = sources[0].type == SourceType::Synthetic;
+        source = factory.createProvider(sources[cameraIndex]);
+        id = sources[cameraIndex].id.c_str();
+        synthetic = sources[cameraIndex].type == SourceType::Synthetic;
     } else {
         source = factory.createProvider(
             SourceInfo(SourceType::Synthetic, data));

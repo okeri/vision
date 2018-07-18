@@ -1,6 +1,10 @@
-#include <CL/cl.hpp>
 #include <stdexcept>
 #include <iostream>
+#include <map>
+#include <string_view>
+
+#include <CL/cl.hpp>
+
 #include <kernel_convert.hh>
 #include <kernel_median.hh>
 #include <kernel_orb.hh>
@@ -12,26 +16,17 @@ using Feature = uint16_t;
 class GPU::Impl {
     FrameInfo info_;
     cl::CommandQueue queue_;
-    cl::Kernel median_;
-    cl::Kernel yuyv2rgb_;
-    cl::Kernel argb2rgb_;
-    cl::Kernel rgba2rgb_;
-    cl::Kernel bgr2rgb_;
-    cl::Kernel yuyv2gs_;
-    cl::Kernel rgb2gs_;
-    cl::Kernel fast_;
-    cl::Kernel fast_nm_;
-    cl::Kernel draw_;
+    std::map<std::string, cl::Kernel, std::less<>> kernels_;
 
     cl::Buffer input_;
     cl::Buffer rgb_;
-    cl::Buffer grayscale_;
+
     cl::Image2D gsimage_;
     cl::Image2D filtered_;
     cl::Image2D allfeatures_;
     cl::Image2D features_;
     const int channels_ = 3;
-    size_t square_;
+    uint32_t square_;
     size_t outputSize_;
     TimeCounter counter_;
     std::vector<uint8_t> rgbBuffer_;
@@ -43,8 +38,7 @@ class GPU::Impl {
             square_(info.width * info.height),
             outputSize_(square_ * channels_),
             rgbBuffer_(outputSize_),
-            featureBuffer_(square_)
-    {
+            featureBuffer_(square_) {
         std::vector<cl::Platform> platforms;
         cl::Platform::get(&platforms);
 
@@ -67,64 +61,69 @@ class GPU::Impl {
         };
 
         cl::Program program(context, sources);
-        if (program.build({default_device}, "-DFAST_POINTS=11 -DFAST_THRESHOLD=20") != CL_SUCCESS) {
-            throw std::runtime_error(
-                "Error building: " + program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(
-                    default_device));
+        auto compiled = program.build({default_device}, "-DFAST_POINTS=9 -DFAST_THRESHOLD=12 -DMEDIAN_WINDOW_SIZE=25 -DMEDIAN_KERNEL_OFFSET=2");
+        std::cout << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(default_device)
+                  << std::endl;
+
+        if (compiled != CL_SUCCESS) {
+            throw std::runtime_error("Error building opencl code");
         }
 
-        std::cout << "ok" << std::endl;
         queue_ =  cl::CommandQueue(context, default_device);
-        yuyv2rgb_ = cl::Kernel(program, "yuyv2rgb");
-        yuyv2gs_  = cl::Kernel(program, "yuyv2gs");
-        argb2rgb_ = cl::Kernel(program, "argb2rgb");
-        rgba2rgb_ = cl::Kernel(program, "rgba2rgb");
-        bgr2rgb_ = cl::Kernel(program, "bgr2rgb");
-        rgb2gs_   = cl::Kernel(program, "rgb2gs");
-        median_   = cl::Kernel(program, "median_mean");
-        fast_   = cl::Kernel(program, "fast");
-        fast_nm_   = cl::Kernel(program, "fastNonMax");
-        draw_   = cl::Kernel(program, "draw");
+        const std::string_view kernels[] = {
+            "argb2rgb", "rgba2rgb", "bgr2rgb", "yuyv2rgb", "yuyv2gs","rgb2gs",
+            "gs2r", "median", "median_mean",
+            "fast", "fastNonMax", "draw", ""};
+
+        for (auto i = 0; kernels[i] != ""; ++i) {
+            kernels_.emplace(kernels[i], cl::Kernel(program, kernels[i].data()));
+        }
 
         input_ = cl::Buffer(context, CL_MEM_ALLOC_HOST_PTR,
                             std::max(outputSize_, info.size()));
         rgb_ = cl::Buffer(context, CL_MEM_USE_HOST_PTR, outputSize_,
                           rgbBuffer_.data());
 
-        grayscale_ = cl::Buffer(context, CL_MEM_READ_WRITE, square_);
-        gsimage_ = cl::Image2D(context, CL_MEM_READ_ONLY,
-                                 cl::ImageFormat(CL_INTENSITY, CL_UNSIGNED_INT8),
+        gsimage_ = cl::Image2D(context, CL_MEM_READ_WRITE,
+                                 cl::ImageFormat(CL_RGBA, CL_UNSIGNED_INT8),
                                  info_.width, info_.height);
 
-        filtered_ = cl::Image2D(context, CL_MEM_WRITE_ONLY,
-                                 cl::ImageFormat(CL_INTENSITY, CL_UNSIGNED_INT8),
+        filtered_ = cl::Image2D(context, CL_MEM_READ_WRITE,
+                                 cl::ImageFormat(CL_RGBA, CL_UNSIGNED_INT8),
                                  info_.width, info_.height);
 
         features_ = cl::Image2D(context, CL_MEM_READ_WRITE,
-                                 cl::ImageFormat(CL_A, CL_UNSIGNED_INT16),
+                                cl::ImageFormat(CL_RGBA, CL_UNSIGNED_INT16),
                                  info_.width, info_.height);
 
         allfeatures_ = cl::Image2D(context, CL_MEM_READ_WRITE,
-                                 cl::ImageFormat(CL_A, CL_UNSIGNED_INT16),
+                                 cl::ImageFormat(CL_RGBA, CL_UNSIGNED_INT16),
                                  info_.width, info_.height);
     }
 
-    inline void convertOperation(cl::Kernel &convertKernel,
-                                 unsigned global, unsigned local,
-                                 const Frame &input, cl::Buffer out) {
+    template <class Destination, class Range>
+    void convertOperation(cl::Kernel &convertKernel,
+                          const Range &global,
+                          const Range &local,
+                          Destination out) {
         convertKernel.setArg(0, input_);
         convertKernel.setArg(1, out);
-        queue_.enqueueWriteBuffer(input_, CL_TRUE, 0, input.size(), input.data());
 
-        queue_.enqueueNDRangeKernel(convertKernel, cl::NullRange,
-                                    cl::NDRange(global),
-                                    cl::NDRange(local));
+        auto ret = queue_.enqueueNDRangeKernel(convertKernel, cl::NullRange,
+                                               cl::NDRange(global),
+                                               cl::NDRange(local));
+        if (ret != CL_SUCCESS) {
+            std::cout << "error of kernel call " << ret << std::endl;
+        }
     }
 
     Frame compute(const Frame &input) {
         counter_.start();
         bool haveGrayscale = false;
+
+        queue_.enqueueWriteBuffer(input_, CL_TRUE, 0, input.size(), input.data());
         // convert to rgb is necessary
+
         switch (info_.format) {
             case FrameFormat::RGB:
                 queue_.enqueueWriteBuffer(rgb_, CL_TRUE, 0, input.size(), input.data());
@@ -132,25 +131,25 @@ class GPU::Impl {
 
             case FrameFormat::YUYV:
                 // 4 yuyv bytes = 2 rgb pixels => iteration count = w * h / 2
-                // convertOperation(yuyv2rgb_, square_ >> 1,
-                //                  info_.width >> 1, input, rgb_);
-                convertOperation(yuyv2gs_, square_ >> 1,
-                                 info_.width >> 1, input, grayscale_);
-
+                convertOperation(kernels_["yuyv2rgb"], square_ >> 1,
+                                 info_.width >> 1, rgb_);
+                convertOperation(kernels_["yuyv2gs"], square_ >> 1,
+                                 info_.width >> 1, gsimage_);
                 haveGrayscale = true;
+
                 break;
 
             case FrameFormat::RGBA:
             case FrameFormat::RGBX:
-                convertOperation(rgba2rgb_, square_, 1, input, rgb_);
+                convertOperation(kernels_["rgba2rgb"], square_, 1u, rgb_);
                 break;
 
             case FrameFormat::BGR:
-                convertOperation(bgr2rgb_, square_, 1, input, rgb_);
+                convertOperation(kernels_["bgr2rgb"], square_, 1u, rgb_);
                 break;
 
             case FrameFormat::ARGB:
-                convertOperation(argb2rgb_, square_, 1, input, rgb_);
+                convertOperation(kernels_["argb2rgb"], square_, 1u, rgb_);
                 break;
 
             default:
@@ -160,49 +159,50 @@ class GPU::Impl {
 
         if (!haveGrayscale) {
             // convert to grayscale
-            rgb2gs_.setArg(0, rgb_);
-            rgb2gs_.setArg(1, grayscale_);
-            queue_.enqueueNDRangeKernel(rgb2gs_, cl::NullRange,
-                                        cl::NDRange(square_),
-                                        cl::NDRange(1));
+            kernels_["rgb2gs"].setArg(0, rgb_);
+            kernels_["rgb2gs"].setArg(1, gsimage_);
+
+            queue_.enqueueNDRangeKernel(
+                kernels_["rgb2gs"], cl::NullRange, cl::NDRange(info_.width, info_.height),
+                cl::NDRange(1, 1));
         }
-        cl::size_t<3> dimensions;
-        dimensions[0] = info_.width;
-        dimensions[1] = info_.height;
-        dimensions[2] = 1;
-        queue_.enqueueCopyBufferToImage(grayscale_, gsimage_, 0,
-                                        cl::size_t<3>(),
-                                        dimensions);
 
         // make median filtration to reduce noise and feature count
-        median_.setArg(0, gsimage_);
-        median_.setArg(1, filtered_);
-        median_.setArg(2, 5 /*kernelSize*/);
+        kernels_["median"].setArg(0, gsimage_);
+        kernels_["median"].setArg(1, filtered_);
+        kernels_["median"].setArg(2, 5 /*kernelSize*/);
         queue_.enqueueNDRangeKernel(
-            median_, cl::NullRange, cl::NDRange(info_.width, info_.height),
+            kernels_["median"], cl::NullRange, cl::NDRange(info_.width, info_.height),
             cl::NDRange(1, 1));
 
         // detect corners
-        fast_.setArg(0, filtered_);
-        fast_.setArg(1, allfeatures_);
+        kernels_["fast"].setArg(0, filtered_);
+        kernels_["fast"].setArg(1, allfeatures_);
         queue_.enqueueNDRangeKernel(
-            fast_, cl::NDRange(3, 3), cl::NDRange(info_.width - 6, info_.height - 6),
+            kernels_["fast"], cl::NDRange(3, 3), cl::NDRange(info_.width - 6, info_.height - 6),
             cl::NDRange(1, 1));
 
         // non-max supression
-        fast_nm_.setArg(0, allfeatures_);
-        fast_nm_.setArg(1, features_);
+        kernels_["fastNonMax"].setArg(0, allfeatures_);
+        kernels_["fastNonMax"].setArg(1, features_);
         queue_.enqueueNDRangeKernel(
-            fast_nm_, cl::NullRange, cl::NDRange(info_.width, info_.height),
+            kernels_["fastNonMax"], cl::NullRange, cl::NDRange(info_.width, info_.height),
             cl::NDRange(1, 1));
 
-
         // draw corners
-        draw_.setArg(0, features_);
-        draw_.setArg(1, rgb_);
-        queue_.enqueueNDRangeKernel(draw_, cl::NullRange, cl::NDRange(square_),
-                                    cl::NDRange(1));
+        kernels_["draw"].setArg(0, features_);
+        kernels_["draw"].setArg(1, rgb_);
+        queue_.enqueueNDRangeKernel(
+            kernels_["draw"], cl::NullRange, cl::NDRange(info_.width, info_.height),
+            cl::NDRange(1, 1));
 
+        auto debug = [this] () {
+                         kernels_["gs2r"].setArg(0, gsimage_);
+                         kernels_["gs2r"].setArg(1, rgb_);
+                         queue_.enqueueNDRangeKernel(
+                             kernels_["gs2r"], cl::NullRange, cl::NDRange(info_.width, info_.height),
+                             cl::NDRange(1, 1));
+                     };
 
         queue_.enqueueReadBuffer(rgb_, CL_TRUE, 0, rgbBuffer_.size(),
                                  rgbBuffer_.data());

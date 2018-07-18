@@ -13,7 +13,7 @@ std::vector<SourceInfo> SourceFactory::availableSources() {
     auto appendIfExists = [&result] (const std::string& path, SourceType type) {
         if (fs::exists(path)) {
             for(auto& source: fs::directory_iterator(path)) {
-                result.emplace_back(SourceInfo(type, source.path()));
+                result.emplace_back(type, source.path());
             }
         }
     };
@@ -34,4 +34,5 @@ std::unique_ptr<ISourceProvider> SourceFactory::createProvider(
             return std::make_unique<synth::SourceProvider>(
                 info.id, info_.format);
     }
+    throw std::runtime_error("Unknown source type");
 }

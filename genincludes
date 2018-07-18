@@ -1,7 +1,7 @@
 #!/bin/bash
 
 mkdir -p $2
-for f in $1/*; do
+for f in $1/*.cl; do
     name=`echo $(basename $f) | cut -d'.' -f1`
     result=$2/kernel_$name.hh
     echo -e "#pragma once\n\nconst char* kernel_"$name"_src = \"\\" > $result

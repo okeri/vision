@@ -19,8 +19,8 @@ if fmt != 6:
     exit(1)
 
 
-fast = cv.FastFeatureDetector_create(nonmaxSuppression=False, threshold=30)
-#fast = cv.FastFeatureDetector_create(nonmaxSuppression=True)
+#fast = cv.FastFeatureDetector_create(nonmaxSuppression=False, threshold=20)
+fast = cv.FastFeatureDetector_create(nonmaxSuppression=True, threshold=20)
 
 orb = cv.ORB_create()
 bf = cv.BFMatcher(cv.NORM_HAMMING, crossCheck=True)
@@ -43,8 +43,9 @@ while True:
 #    cv.flip(frames[frameToggler]["data"], 1, frames[frameToggler]["data"])
     gray  = cv.cvtColor(frames[frameToggler]["data"], cv.COLOR_BGR2GRAY)
 #    cv.medianBlur(frames[frameToggler]["data"], 5, frames[frameToggler]["data"])
-    #frames[frameToggler]["data"] = cv.GaussianBlur(frames[frameToggler]["data"], (7,7), 0)
-#    gray = cv.GaussianBlur(gray, (5,5), 0)
+#    frames[frameToggler]["data"] = cv.GaussianBlur(frames[frameToggler]["data"], (5,5), 0)
+#    cv.medianBlur(gray, 5, gray)
+    gray = cv.GaussianBlur(gray, (5,5), 0)
     # if m == True:
     #     frames[frameToggler]["feature"], frames[frameToggler]["handle"] = orb.detectAndCompute(frames[frameToggler]["data"], None)
     # frames[not frameToggler]["feature"], frames[not frameToggler]["handle"] = orb.detectAndCompute(frames[not frameToggler]["data"], None)

@@ -25,7 +25,7 @@ SourceProvider::SourceProvider(const std::string &id,
     struct v4l2_capability caps = {0};
     if (ioctl(fd_, VIDIOC_QUERYCAP, &caps) == -1 ||
         !(caps.capabilities & V4L2_CAP_VIDEO_CAPTURE)) {
-        throw std::runtime_error("Error: cannot get camera capabilities" + id);
+        throw std::runtime_error("Error: cannot get camera capabilities " + id);
     }
 
     struct v4l2_format format;
@@ -34,10 +34,10 @@ SourceProvider::SourceProvider(const std::string &id,
     format.fmt.pix.width = info.width;
     format.fmt.pix.height = info.height;
     if (ioctl(fd_, VIDIOC_S_FMT, &format) == -1) {
-        throw std::runtime_error("Error: cannot set format" + id);
+        throw std::runtime_error("Error: cannot set format " + id);
     }
 
-#ifndef FORCE_FRAMERATE
+#ifdef FORCE_FRAMERATE
     struct v4l2_streamparm streamparm;
     memset(&streamparm, 0, sizeof(streamparm));
     streamparm.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -45,7 +45,7 @@ SourceProvider::SourceProvider(const std::string &id,
     streamparm.parm.capture.timeperframe.denominator = 30;
     if(ioctl(fd_, VIDIOC_S_PARM, &streamparm) != 0)
     {
-        throw std::runtime_error("Error: cannot set fps)" + id);
+        throw std::runtime_error("Error: cannot set fps " + id);
     }
 #endif
 
@@ -55,24 +55,24 @@ SourceProvider::SourceProvider(const std::string &id,
     bufrequest.count = 1;
 
     if(ioctl(fd_, VIDIOC_REQBUFS, &bufrequest) == -1) {
-        throw std::runtime_error("Error: cannot request buffer" + id);
+        throw std::runtime_error("Error: cannot request buffer " + id);
     }
 
     memset(&bufInfo_, 0, sizeof(bufInfo_));
     bufInfo_.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     bufInfo_.memory = V4L2_MEMORY_MMAP;
     if(ioctl(fd_, VIDIOC_QBUF, &bufInfo_) == -1) {
-        throw std::runtime_error("Error: cannot query buffer" + id);
+        throw std::runtime_error("Error: cannot query buffer " + id);
     }
 
     buffer_ = mmap(NULL, bufInfo_.length, PROT_READ, MAP_SHARED,
                                fd_, bufInfo_.m.offset);
     if (buffer_ == MAP_FAILED) {
-        throw std::runtime_error("Error: failed access data" + id);
+        throw std::runtime_error("Error: failed access data " + id);
     }
 
     if (ioctl(fd_, VIDIOC_STREAMON, &bufInfo_.type) == -1) {
-        throw std::runtime_error("Error: failed to start capture" + id);
+        throw std::runtime_error("Error: failed to start capture " + id);
     }
 }
 
@@ -120,7 +120,7 @@ Frame SourceProvider::frameFromYUYV(const unsigned char *buffer, size_t size) {
         }
     }
     if (counter.end()) {
-            std::cout << "cpu convert:" << counter.average() << std::endl;
+            std::cout << "cpu convertation yuyv->rgb:" << counter.average() << std::endl;
     }
     return frame;
 }
