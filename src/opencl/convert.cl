@@ -1,4 +1,3 @@
-const sampler_t sampler = CLK_NORMALIZED_COORDS_FALSE;
 /* simple rgb conversions */
 void kernel argb2rgb(global const uchar* argb,
                      global uchar* rgb) {
@@ -55,10 +54,10 @@ void kernel yuyv2gs(global const uchar* yuyv,
 
 void kernel rgb2gs(global const uchar* rgb,
 		   write_only image2d_t grayscale) {
-	int src = mul24(get_global_size(0) * get_global_id(1) + get_global_id(0), 3);
-	int2 dst = (int2)(get_global_id(0), get_global_id(1));
+	int src = mul24(get_global_id(0), 3);
+	int2 dst = (int2)(get_local_id(0), get_group_id(0));
 	write_imageui(grayscale, dst,
-                  (uint4)(0, 0, 0, (rgb[src] + rgb[src + 1] * 5 + (rgb[src + 2] << 1)) >> 3));
+		      (uint4)(0, 0, 0, (rgb[src] + rgb[src + 1] * 5 + (rgb[src + 2] << 1)) >> 3));
 }
 
 /*test*/

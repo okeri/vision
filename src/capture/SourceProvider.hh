@@ -5,18 +5,17 @@
 
 namespace capture {
 
-class SourceProvider : public ISourceProvider {
+class SourceProvider final: public ISourceProvider {
     int fd_;
     FrameInfo info_;
     void *buffer_;
     struct v4l2_buffer bufInfo_;
 
-    Frame frameFromYUYV(const unsigned char *buffer, size_t size);
   public:
     SourceProvider(const std::string &id, const FrameInfo& info);
-    virtual FrameInfo info() override;
-    virtual Frame nextFrame() override;
-    virtual ~SourceProvider() override;
+    FrameInfo info() override;
+    Frame nextFrame() override;
+    ~SourceProvider() override;
 };
 
 }  // namespace

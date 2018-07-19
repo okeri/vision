@@ -11,6 +11,7 @@
 #include "SourceProvider.hh"
 
 #include <iostream>
+
 namespace capture {
 
 SourceProvider::SourceProvider(const std::string &id,
@@ -97,14 +98,13 @@ void YUV2RGB(int y, int u, int v, unsigned char *result)
     result[2] = clamp((int)(y + (1.772 * (u - 128))));
 }
 
-}  // namespace
-
 TimeCounter counter;
-// this function also mirrors lines
-Frame SourceProvider::frameFromYUYV(const unsigned char *buffer, size_t size) {
-    static Frame frame(info_.size());
+
+// this function also hflip
+Frame frameFromYUYV(const FrameInfo& info, const unsigned char *buffer, size_t size) {
+    Frame frame(info.size());
     counter.start();
-    size_t rowSize = info_.rowSize();
+    size_t rowSize = info.rowSize();
     for (int i = rowSize - 3, j = 0, istop = -3; j < size; i -= 6, j += 4) {
         int Y1 = buffer[j + 0];
         int U = buffer[j + 1];
@@ -125,6 +125,9 @@ Frame SourceProvider::frameFromYUYV(const unsigned char *buffer, size_t size) {
     return frame;
 }
 
+}  // namespace
+
+
 Frame SourceProvider::nextFrame() {
     ioctl(fd_, VIDIOC_DQBUF, &bufInfo_);
     bufInfo_.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -137,7 +140,7 @@ Frame SourceProvider::nextFrame() {
                          static_cast<uint8_t*>(buffer_) + bufInfo_.length);
 
         case FrameFormat::RGB:
-            return frameFromYUYV(static_cast<unsigned char*>(buffer_),
+            return frameFromYUYV(info_, static_cast<unsigned char*>(buffer_),
                                  bufInfo_.length);
 
         default:

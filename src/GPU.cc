@@ -2,7 +2,7 @@
 #include <iostream>
 #include <map>
 #include <string_view>
-
+#include <charconv>
 #include <CL/cl.hpp>
 
 #include <kernel_convert.hh>
@@ -61,7 +61,12 @@ class GPU::Impl {
         };
 
         cl::Program program(context, sources);
-        auto compiled = program.build({default_device}, "-DFAST_POINTS=9 -DFAST_THRESHOLD=12 -DMEDIAN_WINDOW_SIZE=25 -DMEDIAN_KERNEL_OFFSET=2");
+        constexpr auto medianKernelSize = 5;
+        auto defines = std::string("-DFAST_POINTS=10 -DFAST_THRESHOLD=16 -DMEDIAN_WINDOW_SIZE=") +
+                std::to_string(medianKernelSize) +
+                " -DMEDIAN_WINDOW_SIZE=" + std::to_string(medianKernelSize * medianKernelSize) +
+                " -DMEDIAN_KERNEL_OFFSET=" + std::to_string(medianKernelSize / 2);
+        auto compiled = program.build({default_device}, defines.c_str());
         std::cout << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(default_device)
                   << std::endl;
 
@@ -122,8 +127,6 @@ class GPU::Impl {
         bool haveGrayscale = false;
 
         queue_.enqueueWriteBuffer(input_, CL_TRUE, 0, input.size(), input.data());
-        // convert to rgb is necessary
-
         switch (info_.format) {
             case FrameFormat::RGB:
                 queue_.enqueueWriteBuffer(rgb_, CL_TRUE, 0, input.size(), input.data());
@@ -163,16 +166,15 @@ class GPU::Impl {
             kernels_["rgb2gs"].setArg(1, gsimage_);
 
             queue_.enqueueNDRangeKernel(
-                kernels_["rgb2gs"], cl::NullRange, cl::NDRange(info_.width, info_.height),
-                cl::NDRange(1, 1));
+                kernels_["rgb2gs"], cl::NullRange, cl::NDRange(square_),
+                cl::NDRange(info_.width));
         }
 
         // make median filtration to reduce noise and feature count
-        kernels_["median"].setArg(0, gsimage_);
-        kernels_["median"].setArg(1, filtered_);
-        kernels_["median"].setArg(2, 5 /*kernelSize*/);
+        kernels_["median_mean"].setArg(0, gsimage_);
+        kernels_["median_mean"].setArg(1, filtered_);
         queue_.enqueueNDRangeKernel(
-            kernels_["median"], cl::NullRange, cl::NDRange(info_.width, info_.height),
+            kernels_["median_mean"], cl::NullRange, cl::NDRange(info_.width, info_.height),
             cl::NDRange(1, 1));
 
         // detect corners
@@ -197,12 +199,12 @@ class GPU::Impl {
             cl::NDRange(1, 1));
 
         auto debug = [this] () {
-                         kernels_["gs2r"].setArg(0, gsimage_);
-                         kernels_["gs2r"].setArg(1, rgb_);
-                         queue_.enqueueNDRangeKernel(
-                             kernels_["gs2r"], cl::NullRange, cl::NDRange(info_.width, info_.height),
-                             cl::NDRange(1, 1));
-                     };
+            kernels_["gs2r"].setArg(0, gsimage_);
+            kernels_["gs2r"].setArg(1, rgb_);
+            queue_.enqueueNDRangeKernel(
+                kernels_["gs2r"], cl::NullRange, cl::NDRange(info_.width, info_.height),
+                cl::NDRange(1, 1));
+        };
 
         queue_.enqueueReadBuffer(rgb_, CL_TRUE, 0, rgbBuffer_.size(),
                                  rgbBuffer_.data());
@@ -215,7 +217,6 @@ class GPU::Impl {
         return rgbBuffer_;
     }
 };
-
 
 GPU::GPU(int device, const FrameInfo &info) :
         pImpl_(std::make_unique<GPU::Impl>(device, info)) {

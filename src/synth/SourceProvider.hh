@@ -4,7 +4,7 @@
 
 namespace synth {
 
-class SourceProvider : public ISourceProvider {
+class SourceProvider final: public ISourceProvider {
     enum class Direction {
         Forward,
         Backward
@@ -13,14 +13,14 @@ class SourceProvider : public ISourceProvider {
     int fd_;
     FrameInfo info_;
     Direction dir_;
-    uint64_t min_;
-    uint64_t max_;
+    int64_t min_;
+    int64_t max_;
 
   public:
     SourceProvider(const std::string &id, FrameFormat format);
-    virtual FrameInfo info() override;
-    virtual Frame nextFrame() override;
-    virtual ~SourceProvider() override;
+    FrameInfo info() override;
+    Frame nextFrame() override;
+    ~SourceProvider() override;
 };
 
 }  // namespace

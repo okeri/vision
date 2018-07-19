@@ -1,7 +1,7 @@
 #include "SourceFactory.hh"
 #include <experimental/filesystem>
-#include "../capture/SourceProvider.hh"
-#include "../synth/SourceProvider.hh"
+#include "capture/SourceProvider.hh"
+#include "synth/SourceProvider.hh"
 
 namespace fs = std::experimental::filesystem;
 

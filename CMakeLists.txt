@@ -14,6 +14,7 @@ add_custom_target(generate_opencl_headers COMMAND ./genincludes src/opencl ${OPE
 add_executable(secure_vision ${SOURCES})
 add_dependencies(secure_vision generate_opencl_headers)
 target_link_libraries(secure_vision stdc++fs wayland-cursor wayland-client wayland-egl EGL GLESv2 pthread GL OpenCL)
+set_property(TARGET secure_vision PROPERTY COMPILE_FLAGS "-Wall -pedantic -Wextra -Wunreachable-code")
 
 add_executable(png2dat tools/png2dat/main.cc)
 target_link_libraries(png2dat png)

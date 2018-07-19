@@ -87,7 +87,7 @@ int main(int argc, char *argv[]) {
     GPU gpu(0, info);
 
     EGLWindow window(captureFormat.width, captureFormat.height,
-                     [&source, &info, &os, &gpu] () {
+                     [&source, &info, &os, &gpu, &frames, &window] () {
                          static Renderer render;
                          static FrameCounter counter;
                          static FrameInfo renderInfo =
@@ -95,12 +95,15 @@ int main(int argc, char *argv[]) {
                          Frame frame = source->nextFrame();
                          render.render(gpu.compute(frame), renderInfo);
 
-
                          if (os.is_open()) {
                              os.write(reinterpret_cast<char *>(frame.data()), frame.size());
                              std::cout << "." << std::flush;
                          }
                          counter++;
+
+                         if (counter.frames() > frames) {
+                             window.stop();
+                         };
                      });
 
     return window.loop();
