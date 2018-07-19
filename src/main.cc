@@ -5,6 +5,7 @@
 #include <fstream>
 #include <string>
 #include <cstring>
+#include <charconv>
 
 #include "SourceFactory.hh"
 #include "FrameCounter.hh"
@@ -14,14 +15,14 @@
 
 int main(int argc, char *argv[]) {
     int c;
-    int frames = 128;
-    int cameraIndex = 0;
+    unsigned frames = 0;
+    unsigned cameraIndex = 0;
     bool showSources = false;
     const char *data = nullptr, *record = nullptr;
     while ((c = getopt(argc, argv, "c:d:f:lr:")) != -1) {
         switch (c) {
             case 'c':
-                cameraIndex = std::stoi(optarg);
+                std::from_chars(optarg, optarg + strlen(optarg), cameraIndex);
                 break;
 
             case 'l':
@@ -37,7 +38,7 @@ int main(int argc, char *argv[]) {
                 break;
 
             case 'f':
-                frames = std::stoi(optarg);
+                std::from_chars(optarg, optarg + strlen(optarg), frames);
                 break;
 
             default:
@@ -101,7 +102,7 @@ int main(int argc, char *argv[]) {
                          }
                          counter++;
 
-                         if (counter.frames() > frames) {
+                         if (frames != 0 && counter.frames() > frames) {
                              window.stop();
                          };
                      });

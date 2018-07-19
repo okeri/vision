@@ -62,7 +62,7 @@ class GPU::Impl {
 
         cl::Program program(context, sources);
         constexpr auto medianKernelSize = 5;
-        auto defines = std::string("-DFAST_POINTS=10 -DFAST_THRESHOLD=16 -DMEDIAN_WINDOW_SIZE=") +
+        auto defines = std::string("-DFAST_POINTS=10 -DFAST_THRESHOLD=12 -DMEDIAN_WINDOW_SIZE=") +
                 std::to_string(medianKernelSize) +
                 " -DMEDIAN_WINDOW_SIZE=" + std::to_string(medianKernelSize * medianKernelSize) +
                 " -DMEDIAN_KERNEL_OFFSET=" + std::to_string(medianKernelSize / 2);
