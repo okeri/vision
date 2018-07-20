@@ -61,8 +61,8 @@ class GPU::Impl {
         };
 
         cl::Program program(context, sources);
-        constexpr auto medianKernelSize = 5;
-        auto defines = std::string("-DFAST_POINTS=10 -DFAST_THRESHOLD=12 -DMEDIAN_WINDOW_SIZE=") +
+        constexpr auto medianKernelSize = 3;
+        auto defines = std::string("-DFAST_POINTS=11 -DFAST_THRESHOLD=30 -DMEDIAN_WINDOW_SIZE=") +
                 std::to_string(medianKernelSize) +
                 " -DMEDIAN_WINDOW_SIZE=" + std::to_string(medianKernelSize * medianKernelSize) +
                 " -DMEDIAN_KERNEL_OFFSET=" + std::to_string(medianKernelSize / 2);
@@ -171,10 +171,10 @@ class GPU::Impl {
         }
 
         // make median filtration to reduce noise and feature count
-        kernels_["median_mean"].setArg(0, gsimage_);
-        kernels_["median_mean"].setArg(1, filtered_);
+        kernels_["median"].setArg(0, gsimage_);
+        kernels_["median"].setArg(1, filtered_);
         queue_.enqueueNDRangeKernel(
-            kernels_["median_mean"], cl::NullRange, cl::NDRange(info_.width, info_.height),
+            kernels_["median"], cl::NullRange, cl::NDRange(info_.width, info_.height),
             cl::NDRange(1, 1));
 
         // detect corners
