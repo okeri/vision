@@ -11,7 +11,7 @@ constant int2 fastpoints[16] = {
 
 inline short test_pixel(read_only image2d_t grayscale, short intensity, int2 pos, int index) {
 	int2 pointpos = pos + fastpoints[index];
-	short diff = (short)read_imageui(grayscale, pointpos).w - intensity;
+	short diff = (short)read_imageui(grayscale, pointpos).x - intensity;
 
 	if (diff > FAST_THRESHOLD) {
 		return diff - FAST_THRESHOLD;
@@ -26,7 +26,7 @@ inline short test_pixel(read_only image2d_t grayscale, short intensity, int2 pos
 void kernel fast(read_only image2d_t grayscale,  write_only image2d_t features) {
 	int2 pos = (int2)(get_global_id(0), get_global_id(1));
 	short itable[16];
-	short intensity = (short)read_imageui(grayscale, pos).w;
+	short intensity = (short)read_imageui(grayscale, pos).x;
 
 	for (uint i = 0; i < 16; ++i) {
 		itable[i] = test_pixel(grayscale, intensity, pos, i);
@@ -46,7 +46,7 @@ void kernel fast(read_only image2d_t grayscale,  write_only image2d_t features) 
 
 
 			if (i == start + FAST_POINTS) {
-				write_imageui(features, pos, (uint4)(0, 0, 0, feature));
+				write_imageui(features, pos, (uint4)(feature, 0, 0, 0));
 				return;
 			}
 		}
@@ -58,7 +58,7 @@ void kernel fast(read_only image2d_t grayscale,  write_only image2d_t features) 
 
 void kernel draw(read_only image2d_t features, global uchar* rgb) {
     int2 pos = (int2)(get_local_id(0), get_group_id(0));
-    if (read_imageui(features, pos).w != 0) {
+    if (read_imageui(features, pos).x != 0) {
         int2 ppos;
         for (int i = 0; i < 16; ++i) {
             ppos = pos + fastpoints[i];

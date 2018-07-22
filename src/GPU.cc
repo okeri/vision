@@ -91,16 +91,16 @@ class GPU::Impl {
                           rgbBuffer_.data());
 
         gsimage_ = cl::Image2D(context, CL_MEM_READ_WRITE,
-                                 cl::ImageFormat(CL_RGBA, CL_UNSIGNED_INT8),
-                                 info_.width, info_.height);
+                               cl::ImageFormat(CL_R, CL_UNSIGNED_INT8),
+                               info_.width, info_.height);
 
         filtered_ = cl::Image2D(context, CL_MEM_READ_WRITE,
-                                 cl::ImageFormat(CL_RGBA, CL_UNSIGNED_INT8),
-                                 info_.width, info_.height);
+                                cl::ImageFormat(CL_R, CL_UNSIGNED_INT8),
+                                info_.width, info_.height);
 
         features_ = cl::Image2D(context, CL_MEM_READ_WRITE,
-                                cl::ImageFormat(CL_RGBA, CL_UNSIGNED_INT16),
-                                 info_.width, info_.height);
+                                cl::ImageFormat(CL_R, CL_UNSIGNED_INT16),
+                                info_.width, info_.height);
 
     }
 

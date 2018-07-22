@@ -47,9 +47,9 @@ void kernel yuyv2gs(global const uchar* yuyv,
 		    write_only image2d_t grayscale) {
 	int src = get_global_id(0) << 2;
 	int2 dst = (int2)(get_local_id(0) << 1, get_group_id(0));
-	write_imageui(grayscale, dst, (uint4)(0,0,0,yuyv[src]));
+	write_imageui(grayscale, dst, (uint4)(yuyv[src], 0, 0, 0));
 	dst.x++;
-	write_imageui(grayscale, dst, (uint4)(0,0,0,yuyv[src + 2]));
+	write_imageui(grayscale, dst, (uint4)(yuyv[src + 2], 0, 0, 0));
 }
 
 void kernel rgb2gs(global const uchar* rgb,
@@ -57,14 +57,14 @@ void kernel rgb2gs(global const uchar* rgb,
 	int src = mul24(get_global_id(0), 3);
 	int2 dst = (int2)(get_local_id(0), get_group_id(0));
 	write_imageui(grayscale, dst,
-		      (uint4)(0, 0, 0, (rgb[src] + rgb[src + 1] * 5 + (rgb[src + 2] << 1)) >> 3));
+		      (uint4)((rgb[src] + rgb[src + 1] * 5 + (rgb[src + 2] << 1)) >> 3, 0, 0, 0));
 }
 
 /*test*/
 void kernel gs2r(read_only image2d_t grayscale, global uchar* rgb) {
 	int dst = mul24(get_global_size(0) * get_global_id(1) + get_global_id(0), 3);
 	int2 src = (int2)(get_global_id(0), get_global_id(1));
-	uint value = read_imageui(grayscale, src).w;
+	uint value = read_imageui(grayscale, src).x;
 	rgb[dst] = value;
 	rgb[dst + 1] = value;
 	rgb[dst + 2] = value;

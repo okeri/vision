@@ -9,16 +9,16 @@ void kernel median_mean(read_only image2d_t input, write_only image2d_t output) 
     int2 cpos;
     for (cpos.y = min_pos.y; cpos.y <= max_pos.y; ++cpos.y) {
         for (cpos.x = min_pos.x; cpos.x <= max_pos.x; ++cpos.x, ++wi) {
-            sum += read_imageui(input, cpos).w;
+            sum += read_imageui(input, cpos).x;
         }
     }
-    write_imageui(output, pos, (uint4) (0, 0, 0, sum / wi));
+    write_imageui(output, pos, (uint4) (sum / wi, 0, 0, 0));
 }
 
 void insertionSort(uchar *window, int size) {
     uchar temp;
     int j;
-    for(int i = 0; i < size; ++i) {
+    for (int i = 0; i < size; ++i) {
         temp = window[i];
         for(j = i - 1; j >= 0 && temp < window[j]; --j) {
             window[j + 1] = window[j];
@@ -39,9 +39,9 @@ void kernel median(read_only image2d_t input, write_only image2d_t output) {
     int2 cpos;
     for (cpos.y = min_pos.y; cpos.y <= max_pos.y; ++cpos.y) {
         for (cpos.x = min_pos.x; cpos.x <= max_pos.x; ++cpos.x, ++wi) {
-            window[wi] = read_imageui(input, cpos).w;
+            window[wi] = read_imageui(input, cpos).x;
         }
     }
     insertionSort(window, wi);
-    write_imageui(output, pos, (uint4) (0, 0, 0, window[(wi >> 1) + 1]));
+    write_imageui(output, pos, (uint4) (window[(wi >> 1) + 1], 0, 0, 0));
 }
