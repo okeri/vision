@@ -5,9 +5,9 @@ constant int2 fastpoints[16] = {
 	{2, 2},
 	{1, 3}, {0, 3}, {-1, 3},
 	{-2, 2},
-	{-3, -1}, {-3, 0}, {-3, 1},
+	{-3, 1}, {-3, 0}, {-3, -1},
 	{-2, -2},
-	{1, -3}};
+	{-1, -3}};
 
 inline short test_pixel(read_only image2d_t grayscale, short intensity, int2 pos, int index) {
 	int2 pointpos = pos + fastpoints[index];
