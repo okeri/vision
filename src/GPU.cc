@@ -78,7 +78,7 @@ class GPU::Impl {
         const std::string_view kernels[] = {
             "argb2rgb", "rgba2rgb", "bgr2rgb", "yuyv2rgb", "yuyv2gs","rgb2gs",
             "gs2r", "median", "median_mean",
-            "fast", "fastNonMax", "draw", ""};
+            "fast", "draw", ""};
 
         for (auto i = 0; kernels[i] != ""; ++i) {
             kernels_.emplace(kernels[i], cl::Kernel(program, kernels[i].data()));
@@ -101,9 +101,6 @@ class GPU::Impl {
                                 cl::ImageFormat(CL_RGBA, CL_UNSIGNED_INT16),
                                  info_.width, info_.height);
 
-        allfeatures_ = cl::Image2D(context, CL_MEM_READ_WRITE,
-                                 cl::ImageFormat(CL_RGBA, CL_UNSIGNED_INT16),
-                                 info_.width, info_.height);
     }
 
     template <class Destination, class Range>
@@ -179,24 +176,17 @@ class GPU::Impl {
 
         // detect corners
         kernels_["fast"].setArg(0, filtered_);
-        kernels_["fast"].setArg(1, allfeatures_);
+        kernels_["fast"].setArg(1, features_);
         queue_.enqueueNDRangeKernel(
             kernels_["fast"], cl::NDRange(3, 3), cl::NDRange(info_.width - 6, info_.height - 6),
-            cl::NDRange(1, 1));
-
-        // non-max supression
-        kernels_["fastNonMax"].setArg(0, allfeatures_);
-        kernels_["fastNonMax"].setArg(1, features_);
-        queue_.enqueueNDRangeKernel(
-            kernels_["fastNonMax"], cl::NullRange, cl::NDRange(info_.width, info_.height),
             cl::NDRange(1, 1));
 
         // draw corners
         kernels_["draw"].setArg(0, features_);
         kernels_["draw"].setArg(1, rgb_);
         queue_.enqueueNDRangeKernel(
-            kernels_["draw"], cl::NullRange, cl::NDRange(info_.width, info_.height),
-            cl::NDRange(1, 1));
+            kernels_["draw"], cl::NullRange, cl::NDRange(square_),
+            cl::NDRange(info_.width));
 
         auto debug = [this] () {
             kernels_["gs2r"].setArg(0, gsimage_);
