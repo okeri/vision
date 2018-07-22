@@ -9,6 +9,7 @@
 #include <kernel_median.hh>
 #include <kernel_orb.hh>
 #include <TimeCounter.hh>
+#include <config.hh>
 #include "GPU.hh"
 
 using Feature = uint16_t;
@@ -61,11 +62,11 @@ class GPU::Impl {
         };
 
         cl::Program program(context, sources);
-        constexpr auto medianKernelSize = 3;
-        auto defines = std::string("-DFAST_POINTS=11 -DFAST_THRESHOLD=30 -DMEDIAN_WINDOW_SIZE=") +
-                std::to_string(medianKernelSize) +
-                " -DMEDIAN_WINDOW_SIZE=" + std::to_string(medianKernelSize * medianKernelSize) +
-                " -DMEDIAN_KERNEL_OFFSET=" + std::to_string(medianKernelSize / 2);
+        auto defines = std::string("-DFAST_POINTS=") + std::to_string(FAST_POINTS) +
+                " -DFAST_THRESHOLD=" + std::to_string(FAST_THRESHOLD) +
+                " -DMEDIAN_WINDOW_SIZE=" + std::to_string(MEDIAN_KERNEL_SIZE * MEDIAN_KERNEL_SIZE) +
+                " -DMEDIAN_KERNEL_OFFSET=" + std::to_string(MEDIAN_KERNEL_SIZE >> 1);
+
         auto compiled = program.build({default_device}, defines.c_str());
         std::cout << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(default_device)
                   << std::endl;
