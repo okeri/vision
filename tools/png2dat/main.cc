@@ -78,7 +78,7 @@ uint8_t * load(const void *data, size_t size, FrameInfo &info) noexcept {
     uint8_t *img = nullptr;
     const png_size_t stride = png_get_rowbytes(pngPtr, infoPtr);
     if (stride) {
-        size_t imgSize = stride * info.height;
+        size_t imgSize = info.width * info.height * 3;
         img = new uint8_t[imgSize];
 
         png_byte* row_ptrs[info.height];
@@ -109,9 +109,15 @@ int main(int argc, char *argv[]) {
         info.format = FrameFormat::BGR;
         uint8_t * rgb = load(pngData.data(), pngData.size(), info);
         if (rgb != nullptr) {
-            std::ofstream file(argv[2]);
-            file.write(reinterpret_cast<char *>(&info), sizeof(info));
+            std::ofstream file(argv[2], std::ofstream::app);
+            if (file.tellp() == 0) {
+                file.write(reinterpret_cast<char *>(&info), sizeof(info));
+                std::cout << "wrote header [" << info.width
+                          << " x "<< info.height << "]"
+                          << std::endl;
+            }
             file.write(reinterpret_cast<char *>(rgb), info.size());
+            std::cout << "wrote " << info.size() << " bytes" << std::endl;
             delete [] rgb;
         } else {
             std::cout << "Cannot convert png data" << std::endl;

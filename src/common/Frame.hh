@@ -40,6 +40,7 @@ struct FrameInfo {
             case FrameFormat::YUYV:
                 return 2;
 
+            case FrameFormat::BGR:
             case FrameFormat::RGB:
                 return 3;
 
