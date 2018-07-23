@@ -14,14 +14,14 @@ width=int.from_bytes(out.read(4), 'little')
 height=int.from_bytes(out.read(4), 'little')
 size = width * height * 3
 
-if fmt != 1:
-    print("error: unsupported format")
-    exit(1)
+#if fmt != 1:
+#    print("error: unsupported format")
+#    exit(1)
 
 while(True):
     buf=out.read(size)
     frame = np.frombuffer(buffer=buf, dtype=np.uint8).reshape((height, width, 3))
     cv.imshow('frame', frame)
-    if cv.waitKey(1) & 0xFF == ord('q'):
+    if cv.waitKey(0) & 0xFF == ord('q'):
         break
     sleep(0.03)

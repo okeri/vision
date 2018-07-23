@@ -19,9 +19,6 @@ if fmt != 6:
     exit(1)
 
 
-#fast = cv.FastFeatureDetector_create(nonmaxSuppression=False, threshold=20)
-fast = cv.FastFeatureDetector_create(nonmaxSuppression=True, threshold=20)
-
 orb = cv.ORB_create()
 bf = cv.BFMatcher(cv.NORM_HAMMING, crossCheck=True)
 
@@ -33,38 +30,31 @@ frameToggler = False
 m = False
 
 
-
 while True:
     buf=cap.read(size)
     if (len(buf) == 0):
         break
-    frames[frameToggler]["data"] = np.frombuffer(buffer=buf, dtype=np.uint8).reshape((height, width, 3))
+    image = np.frombuffer(buffer=buf, dtype=np.uint8).reshape((height, width, 3))
+    frames[frameToggler]["data"] = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
+    cv.medianBlur(frames[frameToggler]["data"], 3, frames[frameToggler]["data"])
 
-#    cv.flip(frames[frameToggler]["data"], 1, frames[frameToggler]["data"])
-    gray  = cv.cvtColor(frames[frameToggler]["data"], cv.COLOR_BGR2GRAY)
-#    cv.medianBlur(frames[frameToggler]["data"], 5, frames[frameToggler]["data"])
-#    frames[frameToggler]["data"] = cv.GaussianBlur(frames[frameToggler]["data"], (5,5), 0)
-#    cv.medianBlur(gray, 5, gray)
-    gray = cv.GaussianBlur(gray, (5,5), 0)
-    # if m == True:
-    #     frames[frameToggler]["feature"], frames[frameToggler]["handle"] = orb.detectAndCompute(frames[frameToggler]["data"], None)
-    # frames[not frameToggler]["feature"], frames[not frameToggler]["handle"] = orb.detectAndCompute(frames[not frameToggler]["data"], None)
-    frames[frameToggler]["feature"] = fast.detect(gray)
+    if m == True:
+        frames[frameToggler]["feature"], frames[frameToggler]["handle"] = orb.detectAndCompute(frames[frameToggler]["data"], None)
+    frames[not frameToggler]["feature"], frames[not frameToggler]["handle"] = orb.detectAndCompute(frames[not frameToggler]["data"], None)
     result=0
-    result=cv.drawKeypoints(frames[frameToggler]["data"],frames[frameToggler]["feature"],result,color=(255,0,0),flags=0)
-   #     matches = bf.match(frames[frameToggler]["handle"], frames[not frameToggler]["handle"])
-   #     matches = sorted(matches, key = lambda x:x.distance)
- #       tmatches = [s for s in matches if s.distance < 20]
-  #      stats.append(len(tmatches))
-#        result = cv.drawMatches(frames[frameToggler]["data"],frames[frameToggler]["feature"],frames[not frameToggler]["data"],frames[not frameToggler]["feature"], tmatches, None, flags=2)
+    #   result=cv.drawKeypoints(frames[frameToggler]["data"],frames[frameToggler]["feature"],result,color=(255,0,0),flags=0)
+    matches = bf.match(frames[frameToggler]["handle"], frames[not frameToggler]["handle"])
+    matches = sorted(matches, key = lambda x:x.distance)
+    tmatches = [s for s in matches if s.distance < 20]
+    stats.append(len(tmatches))
+    result = cv.drawMatches(frames[frameToggler]["data"],frames[frameToggler]["feature"],frames[not frameToggler]["data"],frames[not frameToggler]["feature"], tmatches, None, flags=2)
 
-# Display the resulting frame
+    # Display the resulting frame
     cv.imshow('frame', result)
     if cv.waitKey(0) & 0xFF == ord('q'):
         break
     m = True
     frameToggler = not frameToggler
-
 
 # print result
 print("total: {}, min: {}, max: {}, avg: {}".format(len(stats), min(stats), max(stats), np.mean(stats)))
