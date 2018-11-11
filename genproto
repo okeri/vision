@@ -1,0 +1,6 @@
+#!/bin/bash
+
+mkdir -p `dirname $3`
+PROTO_PATH=`pkgconf --variable=pkgdatadir wayland-protocols`
+wayland-scanner $1 $PROTO_PATH/$2 $3
+exit 0
