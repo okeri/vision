@@ -6,20 +6,25 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD 17)
 set(OPENCL_GEN_DIR "/tmp/secure_vision/opencl")
 set(WAYLAND_PROTO_DIR  ${PROJECT_SOURCE_DIR}/protocols)
-set(XDG_SHELL_VERSION xdg-shell-unstable-v6)
-set(XDG_SHELL_PROTO unstable/xdg-shell/${XDG_SHELL_VERSION})
+set(WAYLAND_PROTO_IN_DIR "")
+execute_process(COMMAND pkgconf --variable=pkgdatadir wayland-protocols OUTPUT_VARIABLE WAYLAND_PROTO_IN_DIR OUTPUT_STRIP_TRAILING_WHITESPACE)
+if (WAYLAND_PROTO_IN_DIR STREQUAL "")
+  message("Please install wayland-protocols pkgconf")
+endif()
 
 include_directories(SYSTEM src/common ${OPENCL_GEN_DIR} ${WAYLAND_PROTO_DIR})
 
-file(GLOB SOURCES "src/*.cc" "src/capture/*.cc" "src/synth/*.cc" ${WAYLAND_PROTO_DIR}/"*.c")
+add_custom_target(generate_wayland_proto_code COMMAND mkdir -p ${WAYLAND_PROTO_DIR} &&
+  wayland-scanner client-header ${WAYLAND_PROTO_IN_DIR}/unstable/xdg-shell/xdg-shell-unstable-v6.xml ${WAYLAND_PROTO_DIR}/xdg-shell-unstable-v6-client-protocol.h &&
+  wayland-scanner private-code ${WAYLAND_PROTO_IN_DIR}/unstable/xdg-shell/xdg-shell-unstable-v6.xml ${WAYLAND_PROTO_DIR}/xdg-shell-unstable-v6-protocol.c)
+
+file(GLOB SOURCES "src/*.cc" "src/capture/*.cc" "src/synth/*.cc" ${WAYLAND_PROTO_DIR}/xdg-shell-unstable-v6-protocol.c)
 link_directories("/opt/intel/opencl")
-add_custom_target(generate_wayland_proto_header COMMAND ./genproto client-header ${XDG_SHELL_PROTO}.xml ${WAYLAND_PROTO_DIR}/${XDG_SHELL_VERSION}-client-protocol.h)
-add_custom_target(generate_wayland_proto_code COMMAND ./genproto private-code ${XDG_SHELL_PROTO}.xml ${WAYLAND_PROTO_DIR}/${XDG_SHELL_VERSION}-protocol.c)
+
 
 add_custom_target(generate_opencl_headers COMMAND ./genincludes src/opencl ${OPENCL_GEN_DIR} WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 add_executable(secure_vision ${SOURCES})
 add_dependencies(secure_vision
-  generate_wayland_proto_header
   generate_wayland_proto_code
   generate_opencl_headers)
 

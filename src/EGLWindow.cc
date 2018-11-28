@@ -12,9 +12,6 @@
 #include <stdexcept>
 
 #include <xdg-shell-unstable-v6-client-protocol.h>
-#include "xdg-shell-unstable-v6-protocol.c"
-
-#include <iostream>
 
 class EGLWindow::Impl {
     wl_display* display_;
@@ -82,7 +79,7 @@ class EGLWindow::Impl {
             nullptr};
 
         static const zxdg_shell_v6_listener xdg_shell_listener = {
-            [](void*, struct zxdg_shell_v6* shell, uint32_t serial) {
+            [](void*, zxdg_shell_v6* shell, uint32_t serial) {
                 zxdg_shell_v6_pong(shell, serial);
             }};
 
@@ -123,10 +120,7 @@ class EGLWindow::Impl {
                 window->configured_ = true;
             }};
 
-        static const zxdg_toplevel_v6_listener xdg_toplevel_listener = {
-            [](void*, zxdg_toplevel_v6*, int32_t, int32_t, wl_array*) {},
-            [](void*, zxdg_toplevel_v6*) {}};
-
+        // create display
         display_ = wl_display_connect(NULL);
         if (display_ == nullptr) {
             throw std::runtime_error("Can't connect to display");
@@ -140,7 +134,19 @@ class EGLWindow::Impl {
         if (!compositor_ || !shell_) {
             throw std::runtime_error("Can't init wayland window");
         }
+        // init surface and toplevel
+        surface_ = wl_compositor_create_surface(compositor_);
+        xdg_surface_ = zxdg_shell_v6_get_xdg_surface(shell_, surface_);
+        toplevel_ = zxdg_surface_v6_get_toplevel(xdg_surface_);
 
+        zxdg_surface_v6_add_listener(xdg_surface_, &xdg_surface_listener, this);
+        zxdg_toplevel_v6_set_title(toplevel_, "SecureVision");
+        cursor_surface_ = wl_compositor_create_surface(compositor_);
+        configured_ = false;
+
+        wl_surface_commit(surface_);
+
+        // init egl
         static const EGLint context_attribs[] = {
             EGL_CONTEXT_CLIENT_VERSION, 3, EGL_NONE};
 
@@ -156,26 +162,13 @@ class EGLWindow::Impl {
         EGLint n;
         eglChooseConfig(dpy_, config_attribs, &conf_, 1, &n);
         ctx_ = eglCreateContext(dpy_, conf_, EGL_NO_CONTEXT, context_attribs);
-
-        surface_ = wl_compositor_create_surface(compositor_);
-        xdg_surface_ = zxdg_shell_v6_get_xdg_surface(shell_, surface_);
-        toplevel_ = zxdg_surface_v6_get_toplevel(xdg_surface_);
-
-        zxdg_surface_v6_add_listener(xdg_surface_, &xdg_surface_listener, this);
-        zxdg_toplevel_v6_add_listener(
-            toplevel_, &xdg_toplevel_listener, nullptr);
-        zxdg_toplevel_v6_set_title(toplevel_, "SecureVision");
-        cursor_surface_ = wl_compositor_create_surface(compositor_);
-        configured_ = false;
-
         window_ = wl_egl_window_create(surface_, width, height);
         egl_surface_ = eglCreateWindowSurface(dpy_, conf_,
             reinterpret_cast<EGLNativeWindowType>(window_), nullptr);
-        zxdg_surface_v6_set_window_geometry(xdg_surface_, 0, 0, width, height);
 
-        wl_surface_commit(surface_);
         wl_display_roundtrip(display_);
         wl_surface_commit(surface_);
+
         eglMakeCurrent(dpy_, egl_surface_, egl_surface_, ctx_);
     }
 
