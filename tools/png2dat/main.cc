@@ -78,7 +78,7 @@ uint8_t * load(const void *data, size_t size, FrameInfo &info) noexcept {
     uint8_t *img = nullptr;
     const png_size_t stride = png_get_rowbytes(pngPtr, infoPtr);
     if (stride) {
-        size_t imgSize = info.width * info.height * 3;
+        size_t imgSize = stride * info.height;
         img = new uint8_t[imgSize];
 
         png_byte* row_ptrs[info.height];
