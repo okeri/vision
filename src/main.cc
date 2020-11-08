@@ -86,26 +86,27 @@ int main(int argc, char *argv[]) {
     }
 
     GPU gpu(0, info);
+    EGLWindow window(640, 480,  // 640 * 1080 / 480, 1080,
+        [&source, &os, &gpu, &info, &frames, &window](
+            uint32_t width, uint32_t height) {
+            static Renderer render;
+            static FrameCounter counter;
+            static FrameInfo renderInfo = {
+                FrameFormat::RGB, info.width, info.height};
 
-    EGLWindow window(captureFormat.width, captureFormat.height,
-                     [&source, &info, &os, &gpu, &frames, &window] () {
-                         static Renderer render;
-                         static FrameCounter counter;
-                         static FrameInfo renderInfo =
-                                 {FrameFormat::RGB, info.width, info.height};
-                         Frame frame = source->nextFrame();
-                         render.render(gpu.compute(frame), renderInfo);
+            Frame frame = source->nextFrame();
+	    auto w = height * 640 / 480;
+            render.render(gpu.compute(frame), renderInfo, (width - w) / 2, w, height);
+            if (os.is_open()) {
+                os.write(reinterpret_cast<char*>(frame.data()), frame.size());
+                std::cout << "." << std::flush;
+            }
+            counter++;
 
-                         if (os.is_open()) {
-                             os.write(reinterpret_cast<char *>(frame.data()), frame.size());
-                             std::cout << "." << std::flush;
-                         }
-                         counter++;
-
-                         if (frames != 0 && counter.frames() > frames) {
-                             window.stop();
-                         };
-                     });
+            if (frames != 0 && counter.frames() > frames) {
+                window.stop();
+            };
+        });
 
     return window.loop();
 }

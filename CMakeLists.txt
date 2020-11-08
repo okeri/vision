@@ -15,10 +15,10 @@ endif()
 include_directories(SYSTEM src/common ${OPENCL_GEN_DIR} ${WAYLAND_PROTO_DIR})
 
 add_custom_target(generate_wayland_proto_code COMMAND mkdir -p ${WAYLAND_PROTO_DIR} &&
-  wayland-scanner client-header ${WAYLAND_PROTO_IN_DIR}/unstable/xdg-shell/xdg-shell-unstable-v6.xml ${WAYLAND_PROTO_DIR}/xdg-shell-unstable-v6-client-protocol.h &&
-  wayland-scanner private-code ${WAYLAND_PROTO_IN_DIR}/unstable/xdg-shell/xdg-shell-unstable-v6.xml ${WAYLAND_PROTO_DIR}/xdg-shell-unstable-v6-protocol.c)
+  wayland-scanner client-header ${WAYLAND_PROTO_IN_DIR}/stable/xdg-shell/xdg-shell.xml ${WAYLAND_PROTO_DIR}/xdg-shell-client-protocol.h &&
+  wayland-scanner private-code ${WAYLAND_PROTO_IN_DIR}/stable/xdg-shell/xdg-shell.xml ${WAYLAND_PROTO_DIR}/xdg-shell-protocol.c)
 
-file(GLOB SOURCES "src/*.cc" "src/capture/*.cc" "src/synth/*.cc" ${WAYLAND_PROTO_DIR}/xdg-shell-unstable-v6-protocol.c)
+file(GLOB SOURCES "src/*.cc" "src/capture/*.cc" "src/synth/*.cc" ${WAYLAND_PROTO_DIR}/xdg-shell-protocol.c)
 link_directories("/opt/intel/opencl")
 
 

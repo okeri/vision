@@ -80,13 +80,12 @@ Renderer::Renderer() {
     glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, vertices);
 }
 
-void Renderer::render(const Frame &frame, const FrameInfo &info) {
+void Renderer::render(const Frame& frame, const FrameInfo& info,
+    uint32_t offset, uint32_t width, uint32_t height) {
+    glViewport(offset, 0, width, height);
 
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8,
-                 info.width, info.height, 0,
-                 frameFormat2openglFormat(info.format),
-                 GL_UNSIGNED_BYTE,
-                 frame.data());
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, info.width, info.height, 0,
+        frameFormat2openglFormat(info.format), GL_UNSIGNED_BYTE, frame.data());
     glClear(GL_COLOR_BUFFER_BIT);
     glDrawArrays(GL_TRIANGLES, 0, 6);
 }

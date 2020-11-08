@@ -5,7 +5,7 @@
 #include <Single.hh>
 
 class EGLWindow : public Single {
-    using RenderFn = std::function<void()>;
+    using RenderFn = std::function<void(uint32_t, uint32_t)>;
     class Impl;
     std::unique_ptr<Impl> pImpl_;
 
