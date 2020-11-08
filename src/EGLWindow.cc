@@ -87,8 +87,8 @@ class EGLWindow::Impl {
                 Impl* window = reinterpret_cast<Impl*>(data);
 
                 if (width > 0 && height > 0) {
-		    window->width_ = width;
-		    window->height_ = height;
+                    window->width_ = width;
+                    window->height_ = height;
                 }
                 if (window->window_)
                     wl_egl_window_resize(window->window_, width, height, 0, 0);
@@ -123,7 +123,8 @@ class EGLWindow::Impl {
                 } else if (strcmp(interface, wl_shm_interface.name) == 0) {
                     wl_shm* shm = reinterpret_cast<wl_shm*>(
                         wl_registry_bind(registry, id, &wl_shm_interface, 1));
-                    window->cursor_theme_ = wl_cursor_theme_load(nullptr, 32, shm);
+                    window->cursor_theme_ =
+                        wl_cursor_theme_load(nullptr, 32, shm);
                     window->default_cursor_ = wl_cursor_theme_get_cursor(
                         window->cursor_theme_, "left_ptr");
                 }
@@ -145,7 +146,7 @@ class EGLWindow::Impl {
         registry_ = wl_display_get_registry(display_);
         wl_registry_add_listener(registry_, &registry_listener, this);
         wl_display_dispatch(display_);
-	wl_display_roundtrip(display_);
+        wl_display_roundtrip(display_);
         wl_display_roundtrip(display_);
 
         if (!compositor_ || !shell_) {
@@ -157,7 +158,7 @@ class EGLWindow::Impl {
         toplevel_ = xdg_surface_get_toplevel(xdg_surface_);
 
         xdg_surface_add_listener(xdg_surface_, &xdg_surface_listener, this);
-	xdg_toplevel_add_listener(toplevel_,&xdg_toplevel_listener, this);
+        xdg_toplevel_add_listener(toplevel_, &xdg_toplevel_listener, this);
         wl_display_roundtrip(display_);
         wl_display_roundtrip(display_);
         xdg_toplevel_set_title(toplevel_, "SecureVision");
@@ -167,7 +168,8 @@ class EGLWindow::Impl {
 
         wl_surface_commit(surface_);
         wl_display_roundtrip(display_);
-	
+        wl_display_roundtrip(display_);
+
         // init egl
         static const EGLint context_attribs[] = {
             EGL_CONTEXT_CLIENT_VERSION, 3, EGL_NONE};
@@ -185,8 +187,8 @@ class EGLWindow::Impl {
         eglChooseConfig(dpy_, config_attribs, &conf_, 1, &n);
         ctx_ = eglCreateContext(dpy_, conf_, EGL_NO_CONTEXT, context_attribs);
         window_ = wl_egl_window_create(surface_, width, height);
-	width_ = width;
-	height_ = height;
+        width_ = width;
+        height_ = height;
         egl_surface_ = eglCreateWindowSurface(dpy_, conf_,
             reinterpret_cast<EGLNativeWindowType>(window_), nullptr);
 
