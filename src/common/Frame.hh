@@ -1,19 +1,12 @@
 #pragma once
 
 #include <cstdint>
+#include <cstddef>
 #include <vector>
 
 using Frame = std::vector<uint8_t>;
 
-enum class FrameFormat {
-    Grayscale,
-    RGB,
-    RGBX,
-    RGBA,
-    YUYV,
-    ARGB,
-    BGR
-};
+enum class FrameFormat { Grayscale, RGB, RGBX, RGBA, YUYV, ARGB, BGR };
 
 struct FrameInfo {
     FrameFormat format;
@@ -22,10 +15,10 @@ struct FrameInfo {
 
     FrameInfo() = default;
     FrameInfo(FrameFormat f, uint32_t w, uint32_t h) :
-            format(f), width(w), height(h) {
+        format(f), width(w), height(h) {
     }
 
-    FrameInfo& operator=(const FrameInfo &rhs) {
+    FrameInfo& operator=(const FrameInfo& rhs) {
         format = rhs.format;
         width = rhs.width;
         height = rhs.height;

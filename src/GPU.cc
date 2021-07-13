@@ -32,14 +32,16 @@ class GPU::Impl {
     TimeCounter counter_;
     std::vector<uint8_t> rgbBuffer_;
     std::vector<Feature> featureBuffer_;
+    Params params_;
 
   public:
-    Impl(int device, const FrameInfo& info) :
+    Impl(int device, const FrameInfo& info, const Params& params) :
         info_(info),
         square_(info.width * info.height),
         outputSize_(square_ * channels_),
         rgbBuffer_(outputSize_),
-        featureBuffer_(square_) {
+        featureBuffer_(square_),
+        params_(params) {
         std::vector<cl::Platform> platforms;
         cl::Platform::get(&platforms);
 
@@ -61,13 +63,14 @@ class GPU::Impl {
             {kernel_orb_src, strlen(kernel_orb_src)}};
 
         cl::Program program(context, sources);
-        auto defines = std::string("-DFAST_POINTS=") +
-                       std::to_string(FAST_POINTS) +
-                       " -DFAST_THRESHOLD=" + std::to_string(FAST_THRESHOLD) +
-                       " -DMEDIAN_WINDOW_SIZE=" +
-                       std::to_string(MEDIAN_KERNEL_SIZE * MEDIAN_KERNEL_SIZE) +
-                       " -DMEDIAN_KERNEL_OFFSET=" +
-                       std::to_string(MEDIAN_KERNEL_SIZE >> 1);
+        auto defines =
+            std::string("-DFAST_POINTS=") +
+            std::to_string(params.fastPointNumber) +
+            " -DFAST_THRESHOLD=" + std::to_string(params.fastThreshold) +
+            " -DMEDIAN_WINDOW_SIZE=" +
+            std::to_string(MEDIAN_KERNEL_SIZE * MEDIAN_KERNEL_SIZE) +
+            " -DMEDIAN_KERNEL_OFFSET=" +
+            std::to_string(MEDIAN_KERNEL_SIZE >> 1);
 
         auto compiled = program.build({default_device}, defines.c_str());
         std::cout << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(default_device)
@@ -79,7 +82,7 @@ class GPU::Impl {
 
         queue_ = cl::CommandQueue(context, default_device);
         const std::string_view kernels[] = {"argb2rgb", "rgba2rgb", "bgr2rgb",
-            "yuyv2rgb", "yuyv2gs", "rgb2gs", "gs2r", "median", "median_mean",
+            "yuyv2rgb", "yuyv2gs", "rgb2gs", "gs2rgb", "median", "median_mean",
             "fast", "draw", ""};
 
         for (auto i = 0; kernels[i] != ""; ++i) {
@@ -108,7 +111,6 @@ class GPU::Impl {
         const Range& local, Destination out) {
         convertKernel.setArg(0, input_);
         convertKernel.setArg(1, out);
-
         auto ret = queue_.enqueueNDRangeKernel(convertKernel, cl::NullRange,
             cl::NDRange(global), cl::NDRange(local));
         if (ret != CL_SUCCESS) {
@@ -164,13 +166,13 @@ class GPU::Impl {
             queue_.enqueueNDRangeKernel(kernels_["rgb2gs"], cl::NullRange,
                 cl::NDRange(info_.width, info_.height), cl::NDRange(1, 1));
         }
-
-        auto debug = [this]() {
-            kernels_["gs2r"].setArg(0, features_);
-            kernels_["gs2r"].setArg(1, rgb_);
-            queue_.enqueueNDRangeKernel(kernels_["gs2r"], cl::NullRange,
+        if (params_.displayType == DisplayType::FeaturesGray) {
+            // convert to grayscale
+            kernels_["gs2rgb"].setArg(0, gsimage_);
+            kernels_["gs2rgb"].setArg(1, rgb_);
+            queue_.enqueueNDRangeKernel(kernels_["gs2rgb"], cl::NullRange,
                 cl::NDRange(info_.width, info_.height), cl::NDRange(1, 1));
-        };
+        }
 
         // make median filtration to reduce noise and feature count
         kernels_["median"].setArg(0, gsimage_);
@@ -201,8 +203,8 @@ class GPU::Impl {
     }
 };
 
-GPU::GPU(int device, const FrameInfo& info) :
-    pImpl_(std::make_unique<GPU::Impl>(device, info)) {
+GPU::GPU(int device, const FrameInfo& info, const Params& params) :
+    pImpl_(std::make_unique<GPU::Impl>(device, info, params)) {
 }
 
 GPU::~GPU() {

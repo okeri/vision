@@ -14,16 +14,14 @@
 
 namespace capture {
 
-SourceProvider::SourceProvider(const std::string &id,
-                               const FrameInfo& info) :
-        info_(info), buffer_(MAP_FAILED)
-{
+SourceProvider::SourceProvider(const std::string& id, const FrameInfo& info) :
+    info_(info), buffer_(MAP_FAILED) {
     fd_ = open(id.c_str(), O_RDWR);
     if (fd_ == -1) {
         throw std::runtime_error("Error: cannot open camera " + id);
     }
 
-    struct v4l2_capability caps = {0};
+    struct v4l2_capability caps = {{0}, {0}, {0}, 0, 0, 0, {0}};
     if (ioctl(fd_, VIDIOC_QUERYCAP, &caps) == -1 ||
         !(caps.capabilities & V4L2_CAP_VIDEO_CAPTURE)) {
         throw std::runtime_error("Error: cannot get camera capabilities " + id);
@@ -44,8 +42,7 @@ SourceProvider::SourceProvider(const std::string &id,
     streamparm.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     streamparm.parm.capture.timeperframe.numerator = 1;
     streamparm.parm.capture.timeperframe.denominator = 30;
-    if(ioctl(fd_, VIDIOC_S_PARM, &streamparm) != 0)
-    {
+    if (ioctl(fd_, VIDIOC_S_PARM, &streamparm) != 0) {
         throw std::runtime_error("Error: cannot set fps " + id);
     }
 #endif
@@ -55,19 +52,19 @@ SourceProvider::SourceProvider(const std::string &id,
     bufrequest.memory = V4L2_MEMORY_MMAP;
     bufrequest.count = 1;
 
-    if(ioctl(fd_, VIDIOC_REQBUFS, &bufrequest) == -1) {
+    if (ioctl(fd_, VIDIOC_REQBUFS, &bufrequest) == -1) {
         throw std::runtime_error("Error: cannot request buffer " + id);
     }
 
     memset(&bufInfo_, 0, sizeof(bufInfo_));
     bufInfo_.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     bufInfo_.memory = V4L2_MEMORY_MMAP;
-    if(ioctl(fd_, VIDIOC_QBUF, &bufInfo_) == -1) {
+    if (ioctl(fd_, VIDIOC_QBUF, &bufInfo_) == -1) {
         throw std::runtime_error("Error: cannot query buffer " + id);
     }
 
-    buffer_ = mmap(NULL, bufInfo_.length, PROT_READ, MAP_SHARED,
-                               fd_, bufInfo_.m.offset);
+    buffer_ = mmap(
+        NULL, bufInfo_.length, PROT_READ, MAP_SHARED, fd_, bufInfo_.m.offset);
     if (buffer_ == MAP_FAILED) {
         throw std::runtime_error("Error: failed access data " + id);
     }
@@ -85,23 +82,22 @@ SourceProvider::~SourceProvider() {
     close(fd_);
 }
 
-
 namespace {
 
-void YUV2RGB(int y, int u, int v, unsigned char *result)
-{
-    auto clamp  = [] (int byte) -> unsigned char {
+void YUV2RGB(int y, int u, int v, unsigned char* result) {
+    auto clamp = [](int byte) -> unsigned char {
         return std::clamp(byte, 0, 255);
     };
     result[0] = clamp((int)(y + (1.402 * (v - 128))));
-    result[1] = clamp((int)(y - 0.344 * (u - 128) -  0.714 * (v - 128)));
+    result[1] = clamp((int)(y - 0.344 * (u - 128) - 0.714 * (v - 128)));
     result[2] = clamp((int)(y + (1.772 * (u - 128))));
 }
 
 TimeCounter counter;
 
 // this function also hflip
-Frame frameFromYUYV(const FrameInfo& info, const unsigned char *buffer, size_t size) {
+Frame frameFromYUYV(
+    const FrameInfo& info, const unsigned char* buffer, size_t size) {
     Frame frame(info.size());
     counter.start();
     size_t rowSize = info.rowSize();
@@ -120,13 +116,13 @@ Frame frameFromYUYV(const FrameInfo& info, const unsigned char *buffer, size_t s
         }
     }
     if (counter.end()) {
-            std::cout << "cpu convertation yuyv->rgb:" << counter.average() << std::endl;
+        std::cout << "cpu convertation yuyv->rgb:" << counter.average()
+                  << std::endl;
     }
     return frame;
 }
 
 }  // namespace
-
 
 Frame SourceProvider::nextFrame() {
     ioctl(fd_, VIDIOC_DQBUF, &bufInfo_);
@@ -137,14 +133,15 @@ Frame SourceProvider::nextFrame() {
     switch (info_.format) {
         case FrameFormat::YUYV:
             return Frame(static_cast<uint8_t*>(buffer_),
-                         static_cast<uint8_t*>(buffer_) + bufInfo_.length);
+                static_cast<uint8_t*>(buffer_) + bufInfo_.length);
 
         case FrameFormat::RGB:
-            return frameFromYUYV(info_, static_cast<unsigned char*>(buffer_),
-                                 bufInfo_.length);
+            return frameFromYUYV(
+                info_, static_cast<unsigned char*>(buffer_), bufInfo_.length);
 
         default:
-            throw std::logic_error("Getting data in this Frame format is unimplemented");
+            throw std::logic_error(
+                "Getting data in this Frame format is unimplemented");
     }
 }
 
@@ -152,4 +149,4 @@ FrameInfo SourceProvider::info() {
     return info_;
 }
 
-}  // namespace
+}  // namespace capture

@@ -8,7 +8,18 @@ class GPU {
     std::unique_ptr<Impl> pImpl_;
 
   public:
-    GPU(int device, const FrameInfo &info);
+    enum class DisplayType {
+        Features,
+        FeaturesGray,
+    };
+
+    struct Params {
+        DisplayType displayType;
+        unsigned fastPointNumber;
+        unsigned fastThreshold;
+    };
+
+    GPU(int device, const FrameInfo& info, const Params& params);
     ~GPU();
-    Frame compute(const Frame &input);
+    Frame compute(const Frame& input);
 };

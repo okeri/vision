@@ -55,8 +55,7 @@ void kernel rgb2gs(global const uchar* rgb, write_only image2d_t grayscale) {
             (rgb[src] + rgb[src + 1] * 5 + (rgb[src + 2] << 1)) >> 3, 0, 0, 0));
 }
 
-/*test*/
-void kernel gs2r(read_only image2d_t grayscale, global uchar* rgb) {
+void kernel gs2rgb(read_only image2d_t grayscale, global uchar* rgb) {
     int dst =
         mul24(get_global_size(0) * get_global_id(1) + get_global_id(0), 3);
     int2 src = (int2)(get_global_id(0), get_global_id(1));

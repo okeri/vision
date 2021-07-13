@@ -119,7 +119,7 @@ class EGLWindow::Impl {
                            window->output_ == nullptr) {
                     window->output_ =
                         reinterpret_cast<wl_output*>(wl_registry_bind(
-                            registry, id, &wl_output_interface, 2));
+                            registry, id, &wl_output_interface, 1));
                 } else if (strcmp(interface, wl_shm_interface.name) == 0) {
                     wl_shm* shm = reinterpret_cast<wl_shm*>(
                         wl_registry_bind(registry, id, &wl_shm_interface, 1));
